@@ -3,6 +3,7 @@ import pygame
 from paddle import Paddle
 from ball import Ball
 from network import Network
+from protocol import Protocol
 from time import sleep
 
 
@@ -49,6 +50,9 @@ class Game():
         self.paddleB.rect.x = self.WIDTH - 20
         self.paddleB.rect.y = 200
 
+        self.my_paddle: Paddle()
+        self.other_paddle: Paddle()
+
         self.ball = Ball(WHITE, 10, 10)
         self.ball.rect.x = 345
         self.ball.rect.y = 195
@@ -81,16 +85,22 @@ class Game():
     # def IsConnectionEstablished(self):
     #     Network.ConnetionCheck()
 
-    def Update(self, p1, p2, ball, velo):
-        arg = self.network.Update(p1, p2, ball, velo)
-        self.paddleA.rect.x = arg[2]
-        self.paddleA.rect.y = arg[3]
-        self.paddleB.rect.x = arg[4]
-        self.paddleB.rect.y = arg[5]
-        self.ball.rect.x = arg[6]
-        self.ball.rect.y = arg[7]
-        self.ball.velocity[0] = arg[8]
-        self.ball.velocity[0] = arg[9]
+    def Update(self):
+        self.network.protocol.my_paddle_x = self.my_paddle.rect.x
+        self.network.protocol.my_paddle_y = self.my_paddle.rect.y
+        self.network.protocol.other_paddle_x = self.other_paddle.rect.x
+        self.network.protocol.other_paddle_y = self.other_paddle.rect.y
+        self.network.protocol.ball_x = self.ball.rect.x
+        self.network.protocol.ball_y = self.ball.rect.x
+        self.network.protocol.velo_x = self.ball.velocity[0]
+        self.network.protocol.velo_y = self.ball.velocity[1]
+        self.network.protocol.player = self.network.player
+        self.network.protocol.counter_player = self.network.counter_player
+        self.network.protocol.game = self.network.game
+        response_msg = self.network.Update()
+        self.other_paddle.rect.x = response_msg.other_paddle_x
+        self.other_paddle.rect.y = response_msg.other_paddle_y
+        print("rep counter  ", response_msg.counter_player)
 
     def WinRound(self):
 
@@ -130,30 +140,37 @@ class Game():
                     if event.key == pygame.K_x:  # Pressing the x Key will quit the game
                         self.network.DisconnectSession()
                         self.carry_on = False
+
             if not self.network.match:
+
                 print(self.network.Connetion_establish)
                 if self.network.Connetion_establish != 1:
                     self.network.CheckConnetion()
                     print(self.network.Connetion_establish)
                 print("match  ", not self.network.match)
-
+                print("player ", self.network.player)
                 if not self.network.match and not self.network.CheckSession():
                     continue
 
-                # if self.network.player % 2 == 0:
-                #     my
+                # 1P 2P 구분
+                if self.network.player % 2 == 0:  # 2P
+                    self.my_paddle = self.paddleB
+                    self.other_paddle = self.paddleA
+                    self.network.counter_player = self.network.player - 1
+                else:                           # 1P
+                    self.my_paddle = self.paddleA
+                    self.other_paddle = self.paddleB
+                    self.network.counter_player = self.network.player + 1
+                print("player: ", self.network.player,
+                      " counter: ", self.network.counter_player)
 
             # --- Game logic should go here
             self.all_sprites_list.update()
-            self.network.Request(self.paddleA.rect.x)
-            list_p1 = [self.paddleA.rect.x, self.paddleA.rect.y]
-            list_p2 = [self.paddleB.rect.x, self.paddleB.rect.y]
-            list_ball = [self.ball.rect.x, self.ball.rect.y]
-            list_velo = self.ball.velocity
+            # self.network.Request(self.paddleA.rect.x)
 
             # if int(self.network.player) % 2 == 1 and self.network.init == 0:
             #     self.Update(list_p1, list_p2, list_ball, list_velo)
-            self.network.Update()
+            # self.Update()
 
             self.WinRound()
             # Detect collisions between the self.ball and the paddles

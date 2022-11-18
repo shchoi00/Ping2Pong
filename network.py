@@ -1,5 +1,6 @@
-
+from protocol import Protocol
 from socket import *
+import pickle
 
 
 class Network():
@@ -10,57 +11,60 @@ class Network():
         self.clientSock = socket(AF_INET, SOCK_STREAM)
         self.clientSock.connect((self.ip_addr, self.port))
         self.player = 0
+        self.counter_player = 0
         self.match = False
         self.game = 0
         self.init = 0
         self.Connetion_establish = 0
+        self.protocol = Protocol()
 
-    def Request(self, msg):
-        msg = str(msg)
-        self.clientSock.send(msg.encode('ascii'))
+    def Request(self):
+        print(self.protocol.command)
+        send_msg = pickle.dumps(self.protocol)
+        self.clientSock.send(send_msg)
 
-    def Receive(self):
-        result = ""
-        data = self.clientSock.recv(1024)
-        response_msg = data.decode("ascii")
+    def Receive(self) -> Protocol:
+        data = self.clientSock.recv(4096)
+        response_msg = pickle.loads(data)
         print("raw,  ", response_msg)
-        # response_msg = response_msg[:int(len(response_msg)/2)]
+        return response_msg
 
-        player = response_msg[0]
-        print(response_msg)
-        print(player)
-        if player == 0:
-            pass
-        else:
-            if player == self.player:
-                print(response_msg.split('#'))
-        return response_msg.split('#')
-
+    # 서버와 연결 후 자기가 몇번째 플레어이언지 확인
     def CheckConnetion(self):
-        request_msg = "ConnChk" + "#" + self.ip_addr
-        self.Request(request_msg)
+        self.protocol.command = "ConnChk"
+        print("Command  ", self.protocol.command)
+        self.Request()
         response_msg = self.Receive()
-        print("receive return  ", response_msg)
-        if response_msg[1] == "ConnChk":
+        print("receive return")
+        print("Command: ", response_msg.command)
+        print("Game: ", response_msg.game)
+        if response_msg.command == "ConnChk":
             self.Connetion_establish += 1
-            self.player = response_msg[0]
+
+            self.player = response_msg.player
             self.game = int((int(self.player)+1) / 2)
         print("chkconn  ", self.Connetion_establish)
 
+    # 서버에 다른 클라이언트가 연결 되었는지 확인,
+    # 돼었으면 게임 시작
     def CheckSession(self):
-        request_msg = "SessChk" + "#" + str(self.port)
-        self.Request(request_msg)
+        self.protocol.command = "SessChk"
+        self.Request()
         response_msg = self.Receive()
 
-        print(response_msg[0], response_msg[1], response_msg[2])
-        if response_msg[1] == "SessChk":
-            if int(response_msg[2]) % 2 == 0:
+        print(response_msg.player)
+        if response_msg.command == "SessChk":
+            if int(response_msg.player) % 2 == 0:
                 self.match = True
                 return True
         return False
 
-    def UpdataPaddle(self, my_paddle):
-        print(my_paddle[0], my_paddle[1])
+    def Update(self):
+        self.protocol.command = "Update"
+        print("Command  ", self.protocol.command)
+        self.Request()
+        return self.Receive()
 
     def DisconnectSession(self):
-        self.Request("bye")
+        self.protocol.command = "bye"
+        self.Request()
