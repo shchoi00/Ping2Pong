@@ -50,8 +50,8 @@ class Game():
         self.paddleB.rect.x = self.WIDTH - 20
         self.paddleB.rect.y = 200
 
-        self.my_paddle: Paddle()
-        self.other_paddle: Paddle()
+        self.my_paddle: Paddle
+        self.other_paddle: Paddle
 
         self.ball = Ball(WHITE, 10, 10)
         self.ball.rect.x = 345

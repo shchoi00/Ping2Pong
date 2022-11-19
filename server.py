@@ -5,23 +5,7 @@ from threading import Lock
 from protocol import Protocol
 import pickle
 from queue import Queue
-
-
-# 쓰레드끼리 데이터를 공유하는 클래스
-
-
-class GameData():
-    def __init__(self):
-        self.hit = 0  # ball이 paddle에 hit하면 1로 바뀜, 이때마다 ball 위치 동기화
-        self.skill = 0  # skill 사용하면 1로 바뀜, ball 위치, 속도 동기화
-        self.my_paddle_x = 0
-        self.my_paddle_y = 0
-        self.other_paddle_x = 0
-        self.other_paddle_y = 0
-        self.ball_x = 0
-        self.ball_y = 0
-        self.velo_x = 0
-        self.velo_y = 0
+from pygame import time
 
 
 class ClientThread(Thread):
@@ -32,10 +16,10 @@ class ClientThread(Thread):
         Thread.__init__(self)
 
         self.clientAddress = clientAddress
-        self.clientsocket = clientsocket
-        self.request_msg = "initialized"
+        self.clientsocket: socket = clientsocket
+        self.request_msg = ""
 
-        # Shared = shared
+        self.clock = time.Clock()
         self.protocol = Protocol()
 
         # with ClientThread.lock:
@@ -53,6 +37,7 @@ class ClientThread(Thread):
     def run(self):
         print("Connection from : ", self.clientAddress)
         while True:
+            self.clock.tick(60)
             response_msg = self.Receive()
             print("receive, ", response_msg)
 
@@ -96,11 +81,9 @@ class ClientThread(Thread):
         print("UPDATE")
         ClientThread.lock.acquire()
         self.protocol.command = "Updata"
-
-        self.my_q.put(response_msg)
-
         try:
-            other_q: Protocol = self.other_q.get()
+            self.my_q.put(response_msg)
+            other_q: Protocol = self.other_q.get(timeout=0.1)
         except Exception as e:
             other_q: Protocol = response_msg
             print(e)
