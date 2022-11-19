@@ -101,6 +101,8 @@ class Game():
         self.other_paddle.rect.x = response_msg.other_paddle_x
         self.other_paddle.rect.y = response_msg.other_paddle_y
         print("rep counter  ", response_msg.counter_player)
+        print("player: ", self.network.player,
+              " counter: ", self.network.counter_player)
 
     def WinRound(self):
 
@@ -146,18 +148,18 @@ class Game():
                 print(self.network.Connetion_establish)
                 if self.network.Connetion_establish != 1:
                     self.network.CheckConnetion()
-                    print(self.network.Connetion_establish)
+                    print("conn establish ", self.network.Connetion_establish)
                 print("match  ", not self.network.match)
                 print("player ", self.network.player)
                 if not self.network.match and not self.network.CheckSession():
                     continue
 
                 # 1P 2P 구분
-                if self.network.player % 2 == 0:  # 2P
+                if self.network.player % 2 == 0:  # 1P
                     self.my_paddle = self.paddleB
                     self.other_paddle = self.paddleA
                     self.network.counter_player = self.network.player - 1
-                else:                           # 1P
+                else:                           # 2P
                     self.my_paddle = self.paddleA
                     self.other_paddle = self.paddleB
                     self.network.counter_player = self.network.player + 1
@@ -170,7 +172,7 @@ class Game():
 
             # if int(self.network.player) % 2 == 1 and self.network.init == 0:
             #     self.Update(list_p1, list_p2, list_ball, list_velo)
-            # self.Update()
+            self.Update()
 
             self.WinRound()
             # Detect collisions between the self.ball and the paddles

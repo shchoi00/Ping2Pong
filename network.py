@@ -32,7 +32,7 @@ class Network():
     # 서버와 연결 후 자기가 몇번째 플레어이언지 확인
     def CheckConnetion(self):
         self.protocol.command = "ConnChk"
-        print("Command  ", self.protocol.command)
+        print("Command 1  ", self.protocol.command)
         self.Request()
         response_msg = self.Receive()
         print("receive return")
@@ -63,6 +63,7 @@ class Network():
         self.protocol.command = "Update"
         print("Command  ", self.protocol.command)
         self.Request()
+        print("MY X Y,  ", self.protocol.my_paddle_x, self.protocol.my_paddle_y)
         return self.Receive()
 
     def DisconnectSession(self):

@@ -4,16 +4,14 @@ from threading import Thread
 from threading import Lock
 from protocol import Protocol
 import pickle
-import json
+from queue import Queue
+
 
 # 쓰레드끼리 데이터를 공유하는 클래스
 
 
-class Shared(object):
-    current_shared = 0  # 현재 몇개의 클라이언트가 연결 되어 있는지
-    player_data = []
-
-    def __init__(self, hit, skill, my_paddle_x, my_paddle_y, other_paddle_x, other_paddle_y, ball_x, ball_y, velo_x, velo_y):
+class GameData():
+    def __init__(self):
         self.hit = 0  # ball이 paddle에 hit하면 1로 바뀜, 이때마다 ball 위치 동기화
         self.skill = 0  # skill 사용하면 1로 바뀜, ball 위치, 속도 동기화
         self.my_paddle_x = 0
@@ -25,71 +23,28 @@ class Shared(object):
         self.velo_x = 0
         self.velo_y = 0
 
-    def InitPlayerData(self):
-        self.player_data.append(Shared(0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
-
-    def PutMyPaddeld(self, player, x, y):
-        self.player_data[player-1].my_paddle_x = x
-        self.player_data[player-1].my_paddle_y = y
-
-    def PutHit(self, player, hit):
-        self.player_data[player-1].hit = hit
-
-    def PutSkill(self, player, skill):
-        self.player_data[player-1].skill = skill
-
-    def PutMyPaddeld(self, player, x, y):
-        self.player_data[player-1].my_paddle_x = x
-        self.player_data[player-1].my_paddle_y = y
-
-    def PutBall(self, player, x, y):
-        self.player_data[player-1].ball_x = x
-        self.player_data[player-1].ball_y = y
-
-    def PutVelo(self, player, x, y):
-        self.player_data[player-1].velo_x = x
-        self.player_data[player-1].velo_y = y
-
-    def GetHit(self, player):
-        return self.player_data[player-1].hit
-
-    def GetSkill(self, player):
-        return self.player_data[player-1].skill
-
-    def GetOtherPaddle(self, player):
-        return self.player_data[player-1].other_paddle_x, self.player_data[player-1].other_paddle_y
-
-    def GetBall(self, player):
-        return self.player_data[player-1].ball_x, self.player_data[player-1].ball_y
-
-    def GetVelo(self, player):
-        return self.player_data[player-1].velo_x, self.player_data[player-1].velo_y
-
-    def PrintData(self):
-        for e in self.player_data:
-            print(e)
-
 
 class ClientThread(Thread):
+    num_connection: int = 0
+    lock = Lock()
 
-    # lock = Lock()
-
-    def __init__(self, clientAddress, clientsocket, lock, shared: Shared):
+    def __init__(self, clientAddress, clientsocket, my_q: Queue, other_q: Queue):
         Thread.__init__(self)
-        super(ClientThread, self).__init__()
 
         self.clientAddress = clientAddress
         self.clientsocket = clientsocket
         self.request_msg = "initialized"
-        self.lock = lock
-        self.shared = shared
+
+        # Shared = shared
         self.protocol = Protocol()
 
-        with self.lock:
-            self.shared.current_shared += 1
+        # with ClientThread.lock:
         print("New connection added: ", clientAddress)
 
-        self.player = self.shared.current_shared
+        self.my_q: Queue = my_q
+        self.other_q: Queue = other_q
+
+        self.player = ClientThread.num_connection
         if self.player % 2 == 1:
             self.counter_player = self.player + 1
         else:
@@ -102,7 +57,7 @@ class ClientThread(Thread):
             print("receive, ", response_msg)
 
             if response_msg.command == "ConnChk":
-                print(self.shared.current_shared)
+                print(ClientThread.num_connection)
                 self.CheckConnection()
             if response_msg.command == "SessChk":
                 self.CheckSession()
@@ -110,10 +65,9 @@ class ClientThread(Thread):
                 self.Update(response_msg)
             if response_msg.command == "bye":
                 print(response_msg.player)
-                self.shared.PrintData()
                 break
 
-            print("shared  ", self.shared.current_shared)
+            print("shared  ", ClientThread.num_connection)
 
             # request_msg = "[REFLECT}"+response_msg
 
@@ -121,54 +75,60 @@ class ClientThread(Thread):
             self.Request()
 
         print("Client at ", self.clientAddress, " disconnected...")
-        with self.lock:
-            self.shared.current_shared -= 1
-        print(self.shared.current_shared)
+        with ClientThread.lock:
+            ClientThread.num_connection -= 1
+        print(ClientThread.num_connection)
 
     def CheckConnection(self):
         self.protocol.command = "ConnChk"
-
-        self.protocol.player = self.shared.current_shared
-        self.shared.PrintData()
+        ClientThread.num_connection += 1
+        self.protocol.player = ClientThread.num_connection
+        print("num con", ClientThread.num_connection)
 
     def CheckSession(self):
         self.protocol.command = "SessChk"
-        self.protocol.player = self.shared.current_shared
+        self.protocol.player = ClientThread.num_connection
+
+        print("num con", ClientThread.num_connection)
 
     def Update(self, response_msg: Protocol):
         player = response_msg.player
-        self.lock.acquire()
-        self.shared.PutMyPaddeld(
-            player, response_msg.my_paddle_x, response_msg.my_paddle_y)
-        self.shared.PutBall(player, response_msg.ball_x, response_msg.ball_y)
-        self.shared.PutVelo(player, response_msg.ball_x, response_msg.ball_y)
-        self.shared.PutHit(player, response_msg.hit)
-        self.shared.PutSkill(player, response_msg.skill)
-        print(self.protocol.command)
-        print(self.shared.player_data[player - 1])
-        print("player:  ", response_msg.player,
-              " counter ", response_msg.counter_player)
-        print(self.protocol.other_paddle_x,
-              self.protocol.other_paddle_y, response_msg.counter_player)
-        self.protocol.other_paddle_x, self.protocol.other_paddle_y = self.shared.GetOtherPaddle(
-            response_msg.counter_player)
+        print("UPDATE")
+        ClientThread.lock.acquire()
+        self.protocol.command = "Updata"
+
+        self.my_q.put(response_msg)
+
+        try:
+            other_q: Protocol = self.other_q.get()
+        except Exception as e:
+            other_q: Protocol = response_msg
+            print(e)
+
+        self.protocol.other_paddle_x = other_q.my_paddle_x
+        self.protocol.other_paddle_y = other_q.my_paddle_y
+        # self.protocol.other_paddle_x, self.protocol.other_paddle_y = Shared.GetOtherPaddle(
+        #     response_msg.player)
+
+        print("Other  ", self.protocol.other_paddle_x,
+              self.protocol.other_paddle_y)
 
         print("request,  ", self.protocol.command)
-        self.Request()
-        self.lock.release()
+        ClientThread.lock.release()
 
     def Request(self):
-        self.lock.acquire()
+        ClientThread.lock.acquire()
         print("request,  ", self.protocol)
         send_msg = pickle.dumps(self.protocol)
         self.clientsocket.send(send_msg)
-        self.lock.release()
+        ClientThread.lock.release()
 
     def Receive(self) -> Protocol:
         data = self.clientsocket.recv(4096)
         print(len(data))
-        response_msg = pickle.loads(data)
-        print("raw,  ", response_msg)
+        response_msg: Protocol = pickle.loads(data)
+        print("raw,  ", response_msg.command)
+        print("from  ", response_msg.player)
         return response_msg
 
 
@@ -176,10 +136,21 @@ serverSock = socket(AF_INET, SOCK_STREAM)
 serverSock.bind(('', 8082))
 serverSock.listen(1)
 
-shared = Shared(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-lock = Lock()
+
+# lock = Lock()
+q: Queue = []
+for i in range(10):
+    q.append(Queue())
+    q[i].put(Protocol)
+
 while True:
     serverSock.listen(1)
     clientsock, clientAddress = serverSock.accept()
-    newthread = ClientThread(clientAddress, clientsock, lock, shared)
+    if ClientThread.num_connection % 2 == 0:
+        print("init ", ClientThread.num_connection)
+        newthread = ClientThread(
+            clientAddress, clientsock, q[ClientThread.num_connection], q[ClientThread.num_connection + 1])
+    else:
+        newthread = ClientThread(
+            clientAddress, clientsock, q[ClientThread.num_connection], q[ClientThread.num_connection - 1])
     newthread.start()
