@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+# 이 class를 서버와 클라이언트가 주고받고 함
+
 
 @dataclass
 class Protocol:

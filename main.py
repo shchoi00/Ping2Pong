@@ -82,9 +82,8 @@ class Game():
         self.scoreA = 0
         self.scoreB = 0
 
-    # def IsConnectionEstablished(self):
-    #     Network.ConnetionCheck()
-
+    # 현제 게임 정보를 network.protocol에 담아서 서버로 보냄
+    # 서버로부터 상대방의 게임 정보를 받아옴
     def Update(self):
         self.network.protocol.my_paddle_x = self.my_paddle.rect.x
         self.network.protocol.my_paddle_y = self.my_paddle.rect.y
@@ -143,6 +142,7 @@ class Game():
                         self.network.DisconnectSession()
                         self.carry_on = False
 
+            # 상대방에 서버에 연결돼 있는지 확인하는 부분
             if not self.network.match:
 
                 print(self.network.Connetion_establish)
@@ -170,8 +170,6 @@ class Game():
             self.all_sprites_list.update()
             # self.network.Request(self.paddleA.rect.x)
 
-            # if int(self.network.player) % 2 == 1 and self.network.init == 0:
-            #     self.Update(list_p1, list_p2, list_ball, list_velo)
             self.Update()
 
             self.WinRound()

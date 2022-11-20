@@ -17,7 +17,6 @@ class ClientThread(Thread):
 
         self.clientAddress = clientAddress
         self.clientsocket: socket = clientsocket
-        self.request_msg = ""
 
         self.clock = time.Clock()
         self.protocol = Protocol()
@@ -54,9 +53,6 @@ class ClientThread(Thread):
 
             print("shared  ", ClientThread.num_connection)
 
-            # request_msg = "[REFLECT}"+response_msg
-
-            # print("To client: ", self.request_msg)
             self.Request()
 
         print("Client at ", self.clientAddress, " disconnected...")
@@ -67,7 +63,7 @@ class ClientThread(Thread):
     def CheckConnection(self):
         self.protocol.command = "ConnChk"
         ClientThread.num_connection += 1
-        self.protocol.player = ClientThread.num_connection
+        self.protocol.player = ClientThread.num_connection  # 몇번째 플레이어인지 보내줌
         print("num con", ClientThread.num_connection)
 
     def CheckSession(self):
@@ -77,10 +73,9 @@ class ClientThread(Thread):
         print("num con", ClientThread.num_connection)
 
     def Update(self, response_msg: Protocol):
-        player = response_msg.player
         print("UPDATE")
         ClientThread.lock.acquire()
-        self.protocol.command = "Updata"
+        self.protocol.command = "Update"
         try:
             self.my_q.put(response_msg)
             other_q: Protocol = self.other_q.get(timeout=0.1)
@@ -90,8 +85,6 @@ class ClientThread(Thread):
 
         self.protocol.other_paddle_x = other_q.my_paddle_x
         self.protocol.other_paddle_y = other_q.my_paddle_y
-        # self.protocol.other_paddle_x, self.protocol.other_paddle_y = Shared.GetOtherPaddle(
-        #     response_msg.player)
 
         print("Other  ", self.protocol.other_paddle_x,
               self.protocol.other_paddle_y)
@@ -119,21 +112,22 @@ serverSock = socket(AF_INET, SOCK_STREAM)
 serverSock.bind(('', 8082))
 serverSock.listen(1)
 
-
-# lock = Lock()
+# 쓰레드끼리 통신하기 위한 Queue list
 q: Queue = []
-for i in range(10):
+for i in range(6):
     q.append(Queue())
     q[i].put(Protocol)
 
 while True:
     serverSock.listen(1)
     clientsock, clientAddress = serverSock.accept()
+    # 클라이언트가 연결되면 쓰레드 생성
+
     if ClientThread.num_connection % 2 == 0:
         print("init ", ClientThread.num_connection)
-        newthread = ClientThread(
+        newthread = ClientThread(  # 1P 일때
             clientAddress, clientsock, q[ClientThread.num_connection], q[ClientThread.num_connection + 1])
     else:
-        newthread = ClientThread(
+        newthread = ClientThread(  # 2P일때
             clientAddress, clientsock, q[ClientThread.num_connection], q[ClientThread.num_connection - 1])
     newthread.start()
