@@ -4,14 +4,18 @@ from dataclasses import dataclass
 @dataclass
 class Protocol:
     command: str = ""
-    skill: bool = False  # skill 사용하면 True로 바뀜, ball 위치, 속도 동기화
     my_paddle_x: int = 0
     my_paddle_y: int = 0
+    my_paddle_height: int = 0
     score = [0,0]
+    has_item: bool = False
+    item_type: int = 0
+    item_use: bool = False
     pad_up: bool = False
     pad_dn: bool = False
     other_paddle_x: int = 0
     other_paddle_y: int = 0
+    other_paddle_height: int = 0
     ball_x: int = 0
     ball_y: int = 0
     item_x: int = 0

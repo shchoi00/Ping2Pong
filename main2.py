@@ -1,10 +1,10 @@
 # Import the pygame library and initialise the game engine
+from urllib import response
 import pygame
 from paddle import Paddle
 from ball import Ball
 from network2 import Network
 from protocol2 import Protocol
-from time import sleep
 
 
 ITEMSIZE = 50
@@ -61,6 +61,7 @@ class Game():
         self.item.rect.x = 300
         self.item.rect.y = 300
 
+
         self.network = Network()
 
         # This will be a list that will contain all the sprites we intend to use in our game.
@@ -81,13 +82,11 @@ class Game():
         # Initialise player scores
         self.scoreA = 0
         self.scoreB = 0
-
+ 
     # def IsConnectionEstablished(self):
     #     Network.ConnetionCheck()
 
-    def Update(self,dt,arr):
-        self.network.protocol.pad_up=arr[0]
-        self.network.protocol.pad_dn=arr[1]
+    def Update(self,dt):
         self.network.protocol.player = self.network.player
         self.network.protocol.counter_player = self.network.counter_player
         self.network.protocol.game = self.network.game
@@ -102,14 +101,18 @@ class Game():
         self.ball.rect.y = response_msg.ball_y
         self.scoreA = response_msg.score[0]
         self.scoreB = response_msg.score[1]
+        self.item.rect.x = response_msg.item_x
+        self.item.rect.y = response_msg.item_y
+        self.my_paddle.height = response_msg.my_paddle_height
+        self.other_paddle.height = response_msg.other_paddle_height
+        self.network.protocol.has_item = response_msg.has_item
+        self.network.protocol.item_type = response_msg.item_type
         print("dt: ",dt," ball.velo.x: ",self.ball.velocity[0])
         print("rep counter  ", response_msg.counter_player)
         print("player: ", self.network.player,
               " counter: ", self.network.counter_player)
 
     def RunGame(self):
-        up: bool = False
-        dn: bool = False
         # -------- Main Program Loop -----------
         while self.carry_on:
             dt = self.clock.tick(60) / 10
@@ -122,15 +125,19 @@ class Game():
                         self.carry_on = False
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_UP or event.key == pygame.K_w:
-                        up = True
+                        self.network.protocol.pad_up = True
                     if event.key == pygame.K_DOWN or event.key == pygame.K_s:
-                        dn = True
+                        self.network.protocol.pad_dn = True
+                    if event.key == pygame.K_LCTRL or event.key == pygame.K_R_CTRL:
+                        if self.network.protocol.has_item:
+                            self.network.protocol.item_use = True
                 if event.type == pygame.KEYUP:
                     if event.key == pygame.K_UP or event.key == pygame.K_w:
-                        up = False
+                        self.network.protocol.pad_up = False
                     if event.key == pygame.K_DOWN or event.key == pygame.K_s:
-                        dn = False
-            arr = [up,dn]
+                        self.network.protocol.pad_dn = False
+                    if event.key == pygame.K_LCTRL or event.key == pygame.K_R_CTRL:
+                        self.network.protocol.item_use = False
 
             if not self.network.match:
                 print(self.network.Connetion_establish)
@@ -156,10 +163,7 @@ class Game():
             self.all_sprites_list.update()
 
             # Moving the paddles when the use uses the arrow keys (player A) or "W/S" keys (player B)
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_n]:
-                self.ball.skill()
-            self.Update(dt,arr)
+            self.Update(dt)
 
             # --- Drawing code should go here
             # First, clear the self.screen to black.
@@ -170,13 +174,6 @@ class Game():
 
             # Now let's draw all the sprites in one go. (For now we only have 2 sprites!)
             self.all_sprites_list.draw(self.screen)
-
-            if self.item.rect.x < self.ball.rect.x + ITEMSIZE and self.ball.rect.x < self.item.rect.x:
-                if self.item.rect.y < self.ball.rect.y + ITEMSIZE and self.ball.rect.y < self.item.rect.y:
-                    if self.paddleA.last_bounced:
-                        self.paddleA.skill_point += 1
-                    elif self.paddleB.last_bounced:
-                        self.paddleB.skill_point += 1
 
             # Display scores:
             font = pygame.font.Font(None, 74)
