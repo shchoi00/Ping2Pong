@@ -13,7 +13,7 @@ from sharedata import ShareData
 
 
 # 쓰레드간 공유할 변수 선언
-shared_data: ShareData = []
+shared_data: list[ShareData] = []
 
 
 class ClientThread(Thread):
@@ -28,13 +28,9 @@ class ClientThread(Thread):
         shared_data.append(ShareData())
         self.clientAddress = clientAddress
         self.clientsocket: socket = clientsocket
-        self.request_msg = ""
 
         self.clock = time.Clock()
         self.protocol = Protocol()
-
-        # with ClientThread.lock:
-        print("New connection added: ", clientAddress)
 
         self.player = ClientThread.num_connection
         if self.player % 2 == 1:
@@ -144,6 +140,7 @@ class ClientThread(Thread):
             self.protocol.other_paddle_x = shared_data[identifier].p2_x
             self.protocol.other_paddle_y = shared_data[identifier].p2_y
             self.protocol.has_item = shared_data[identifier].p1_item
+            self.protocol.other_has_item = shared_data[identifier].p2_item
             self.protocol.item_type = shared_data[identifier].p1_item_type
             self.protocol.my_paddle_height = shared_data[identifier].p1_paddle_height
             self.protocol.other_paddle_height = shared_data[identifier].p2_paddle_height
@@ -170,6 +167,7 @@ class ClientThread(Thread):
             self.protocol.other_paddle_x = shared_data[identifier].p1_x
             self.protocol.other_paddle_y = shared_data[identifier].p1_y
             self.protocol.has_item = shared_data[identifier].p2_item
+            self.protocol.other_has_item = shared_data[identifier].p1_item
             self.protocol.item_type = shared_data[identifier].p2_item_type
             self.protocol.my_paddle_height = shared_data[identifier].p2_paddle_height
             self.protocol.other_paddle_height = shared_data[identifier].p1_paddle_height

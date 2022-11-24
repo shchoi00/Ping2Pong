@@ -45,7 +45,7 @@ class Network():
         print("chkconn  ", self.Connetion_establish)
 
     # 서버에 다른 클라이언트가 연결 되었는지 확인,
-    # 돼었으면 게임 시작
+    # 되었으면 게임 시작
     def CheckSession(self):
         self.protocol.command = "SessChk"
         self.Request()

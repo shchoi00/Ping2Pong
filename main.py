@@ -12,6 +12,7 @@ ITEMSIZE = 50
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 RED = (255, 255, 0)
+YELLOW = (250, 182, 40)
 
 
 class Item(pygame.sprite.Sprite):
@@ -41,7 +42,7 @@ class Game():
         # Open a new window
         self.size = (self.WIDTH, self.HEIGHT)
         self.screen = pygame.display.set_mode(self.size)
-        pygame.display.set_caption("Pong")
+        pygame.display.set_caption("Ping 2 Pong")
 
         self.paddleA = Paddle(WHITE, 10, 100)
         self.paddleA.rect.x = 10
@@ -61,7 +62,6 @@ class Game():
         self.item = Item(RED, 300, 300)
         self.item.rect.x = 300
         self.item.rect.y = 300
-
 
         self.network = Network()
 
@@ -83,11 +83,8 @@ class Game():
         # Initialise player scores
         self.scoreA = 0
         self.scoreB = 0
- 
-    # def IsConnectionEstablished(self):
-    #     Network.ConnetionCheck()
 
-    def Update(self,dt):
+    def Update(self, dt):
         self.network.protocol.player = self.network.player
         self.network.protocol.counter_player = self.network.counter_player
         self.network.protocol.game = self.network.game
@@ -106,14 +103,13 @@ class Game():
         self.my_paddle.height = response_msg.my_paddle_height
         self.other_paddle.height = response_msg.other_paddle_height
         self.network.protocol.has_item = response_msg.has_item
+        self.network.protocol.other_has_item = response_msg.other_has_item
         self.network.protocol.item_type = response_msg.item_type
         if response_msg.ball_shine[0] or response_msg.ball_shine[1]:
-            self.ball.color = (randint(0,255),randint(0,255),randint(0,255))
+            self.ball.color = (
+                randint(0, 255), randint(0, 255), randint(0, 255))
         else:
             self.ball.color = (WHITE)
-        print("rep counter  ", response_msg.counter_player)
-        print("player: ", self.network.player,
-              " counter: ", self.network.counter_player)
 
     def RunGame(self):
         # -------- Main Program Loop -----------
@@ -127,7 +123,7 @@ class Game():
                     if event.key == pygame.K_x:  # Pressing the x Key will quit the game
                         self.carry_on = False
 
-                        #컨트롤 제어 코드
+                        # 컨트롤 제어 코드
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_UP or event.key == pygame.K_w:
                         self.network.protocol.pad_up = True
@@ -135,7 +131,9 @@ class Game():
                         self.network.protocol.pad_dn = True
                     if event.key == pygame.K_LCTRL or event.key == pygame.K_RCTRL:
                         if self.network.protocol.has_item:
+
                             self.network.protocol.item_use = True
+                            self.network.protocol.has_item = False
                 if event.type == pygame.KEYUP:
                     if event.key == pygame.K_UP or event.key == pygame.K_w:
                         self.network.protocol.pad_up = False
@@ -154,7 +152,7 @@ class Game():
                 if not self.network.match and not self.network.CheckSession():
                     continue
                 # 1P 2P 구분
-                if self.network.player % 2 == 0 :  # 1P
+                if self.network.player % 2 == 0:  # 1P
                     self.my_paddle = self.paddleB
                     self.other_paddle = self.paddleA
                     self.network.counter_player = self.network.player - 1
@@ -186,6 +184,16 @@ class Game():
             self.screen.blit(text, (self.WIDTH/2-110, 10))
             text = font.render(str(self.scoreB), 1, WHITE)
             self.screen.blit(text, (self.WIDTH/2+110, 10))
+
+            if self.network.protocol.has_item:
+                self.my_paddle.color = YELLOW
+            else:
+                self.my_paddle.color = WHITE
+
+            if self.network.protocol.other_has_item:
+                self.other_paddle.color = YELLOW
+            else:
+                self.other_paddle.color = WHITE
 
             # --- Go ahead and update the self.screen with what we've drawn.
             pygame.display.flip()
