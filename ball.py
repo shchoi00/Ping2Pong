@@ -10,7 +10,9 @@ class Ball(pygame.sprite.Sprite):
     def __init__(self, color, width, height):
         # Call the parent class (Sprite) constructor
         super().__init__()
-
+        self.color = color
+        self.width = width
+        self.height = height
         # Pass in the color of the ball, its width and height.
         # Set the background color and set it to be transparent
         self.image = pygame.Surface([width, height])
@@ -25,15 +27,8 @@ class Ball(pygame.sprite.Sprite):
 
         # Fetch the rectangle object that has the dimensions of the image.
         self.rect = self.image.get_rect()
-
     def update(self):
-        self.rect.x += self.velocity[0]
-        self.rect.y += self.velocity[1]
-
-    def bounce(self):
-        self.velocity[0] = -self.velocity[0] * 1.1 + randint(-1, 4)
-        self.velocity[1] = self.velocity[1] * 1.1 + randint(-1, 4)
-
-    def skill(self):
-        self.velocity[0] *= 1.5
-        self.velocity[1] = 0
+        self.image = pygame.Surface([self.width, self.height])
+        self.image.fill(BLACK)
+        self.image.set_colorkey(BLACK)
+        pygame.draw.rect(self.image, self.color, [0, 0, self.width, self.height])
