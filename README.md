@@ -2,7 +2,7 @@
 
 Server: server.py  
 Client: main.py
-
+Control: Arrow key, Keyboard W, S (MOVEMENT) / Left Ctrl, Right Ctrl (ITEM)
 # DEADLINE: 11/24(목)
 
 ### ToDo List
