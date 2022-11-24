@@ -9,30 +9,23 @@ from protocol import Protocol
 import pickle
 from queue import Queue
 from pygame import time
+from sharedata import ShareData
 
 
-#¾²·¹µå°£ °øÀ¯ÇÒ º¯¼ö ¼±¾ğ
-data=[]
+# ì“°ë ˆë“œê°„ ê³µìœ í•  ë³€ìˆ˜ ì„ ì–¸
+shared_data: ShareData = []
+
 
 class ClientThread(Thread):
     num_connection: int = 0
     lock = Lock()
 
-    def __init__(self, clientAddress, clientsocket, my_q: Queue, other_q: Queue):
+    def __init__(self, clientAddress, clientsocket):
         Thread.__init__(self)
 
-        #¾²·¹µå °øÀ¯º¯¼ö ÃÊ±âÈ­, 
-        #ÀÌ º¯¼ö¸¦ »ç¿ëÇÏ¿© ¼­¹ö-Å¬¶óÀÌ¾ğÆ®°£ Åë½ÅÀ» ±¸ÇöÇÔ.
-        data.append([10,200,780,200,345,195,
-                     1,1,0,0,1,-999,-999,False,
-                     0,False,0,False,0,
-                     100,100,[0,0,0],[0,0,0],[False,False,False],[False,False,False],
-                     0,0])
-        # P1_X, P1_Y, P2_X, P2_Y, Ball_X, Ball_Y, 0, 1, 2, 3, 4, 5
-        # velo_x, velo_y, P1_score, P2_Score, Item_constructor, item_x, item_y, item_existence 6, 7, 8, 9, 10, 11, 12, 13,
-        # Last_hit, P1_item, P1_item_type, P2_item, P2_item_type, 14, 15, 16, 17, 18,
-        # p1_paddle_height, p2_paddle_height, p1_item_time, p2_item_time, p1_item_used, p2_item_used  19, 20, 21, 22, 23, 24 
-        # tempvelo_x, tempvelo_y  25, 26
+        # ì“°ë ˆë“œ ê³µìœ ë³€ìˆ˜ ì´ˆê¸°í™”,
+        # ì´ ë³€ìˆ˜ë¥¼ ì‚¬ìš©í•˜ì—¬ ì„œë²„-í´ë¼ì´ì–¸íŠ¸ê°„ í†µì‹ ì„ êµ¬í˜„í•¨.
+        shared_data.append(ShareData())
         self.clientAddress = clientAddress
         self.clientsocket: socket = clientsocket
         self.request_msg = ""
@@ -42,9 +35,6 @@ class ClientThread(Thread):
 
         # with ClientThread.lock:
         print("New connection added: ", clientAddress)
-
-        self.my_q: Queue = my_q
-        self.other_q: Queue = other_q
 
         self.player = ClientThread.num_connection
         if self.player % 2 == 1:
@@ -71,9 +61,6 @@ class ClientThread(Thread):
 
             print("shared  ", ClientThread.num_connection)
 
-            # request_msg = "[REFLECT}"+response_msg
-
-            # print("To client: ", self.request_msg)
             self.Request()
 
         print("Client at ", self.clientAddress, " disconnected...")
@@ -91,255 +78,263 @@ class ClientThread(Thread):
         self.protocol.command = "SessChk"
         self.protocol.player = ClientThread.num_connection
         print("num con", ClientThread.num_connection)
-    
+
     def Update(self, response_msg: Protocol):
         print("UPDATE")
         ClientThread.lock.acquire()
         self.protocol.command = "Update"
-        try:
-            self.my_q.put(response_msg)
-            other_q: Protocol = self.other_q.get(timeout=0.1)
-        except Exception as e:
-            other_q: Protocol = response_msg
-            print(e)
 
-            #Å¬¶óÀÌ¾ğÆ®ÀÇ Å° ÀÔ·ÂÀ» Ã³¸®ÇÏ´Â ºÎºĞ
-            #identifier = °¢ ¾²·¹µå°£ ´Ù¸¥ °øÀ¯º¯¼ö¸¦ »ç¿ëÇÏµµ·Ï ÇÏ´Â ½Äº°ÀÚ
-            #¾²·¹µå 1,2ÀÇ ½Äº°ÀÚ °ªÀº 0, 
-            #3°ú 4ÀÇ ½Äº°ÀÚ °ªÀº 2°¡ µÈ´Ù.
+        # í´ë¼ì´ì–¸íŠ¸ì˜ í‚¤ ì…ë ¥ì„ ì²˜ë¦¬í•˜ëŠ” ë¶€ë¶„
+        # identifier = ê° ì“°ë ˆë“œê°„ ë‹¤ë¥¸ ê³µìœ ë³€ìˆ˜ë¥¼ ì‚¬ìš©í•˜ë„ë¡ í•˜ëŠ” ì‹ë³„ì
+        # ì“°ë ˆë“œ 1,2ì˜ ì‹ë³„ì ê°’ì€ 0,
+        # 3ê³¼ 4ì˜ ì‹ë³„ì ê°’ì€ 2ê°€ ëœë‹¤.
 
-            #È¦¼ö¹øÂ° ÇÃ·¹ÀÌ¾îÀÏ °æ¿ì (ÁÂÃø ¸·´ë ¹èÁ¤)
-        if response_msg.player % 2 == 1: 
+        # í™€ìˆ˜ë²ˆì§¸ í”Œë ˆì´ì–´ì¼ ê²½ìš° (ì¢Œì¸¡ ë§‰ëŒ€ ë°°ì •)
+        if response_msg.player % 2 == 1:
             identifier: int = response_msg.player - 1
             if response_msg.pad_up == True:
-                data[identifier][1] -= 6.5*response_msg.dt
+                shared_data[identifier].p1_y -= 6.5*response_msg.dt
             elif response_msg.pad_dn == True:
-                data[identifier][1] += 6.5*response_msg.dt
-    
-            #¾ÆÀÌÅÛ »ç¿ë
-            #1¹ø ¾ÆÀÌÅÛ = ¸·´ë ±æÀÌ Áõ°¡
-            #2¹ø ¾ÆÀÌÅÛ = ¿øÇÏ´Â Å¸ÀÌ¹Ö¿¡ °ø ÀÏ½ÃÁ¤Áö
-            #3¹ø ¾ÆÀÌÅÛ = ²Î(ÀÓ½Ã, º¸·ùÁß)
-            if response_msg.item_use == True and not data[identifier][23][data[identifier][16]-1]:
-                data[identifier][23][data[identifier][16]-1] = True
-                data[identifier][15] = False
-                data[identifier][21][data[identifier][16]-1] = 0
-                if data[identifier][16] == 2:
-                    data[identifier][25] = data[identifier][6]
-                    data[identifier][26] = data[identifier][7]
-                    data[identifier][7] = 0
-                    data[identifier][6] = 0
-                data[identifier][16] = 0
-            #¾ÆÀÌÅÛ Á¾·á
-            if data[identifier][23][0]:
-                if data[identifier][21][0] >= 10000:
-                    if data[identifier][19] > 100:
-                        data[identifier][19] -= 5
+                shared_data[identifier].p1_y += 6.5*response_msg.dt
+
+            # ì•„ì´í…œ ì‚¬ìš©
+            # 1ë²ˆ ì•„ì´í…œ = ë§‰ëŒ€ ê¸¸ì´ ì¦ê°€
+            # 2ë²ˆ ì•„ì´í…œ = ì›í•˜ëŠ” íƒ€ì´ë°ì— ê³µ ì¼ì‹œì •ì§€
+            # 3ë²ˆ ì•„ì´í…œ = ê½(ì„ì‹œ, ë³´ë¥˜ì¤‘)
+            if response_msg.item_use == True and not shared_data[identifier].p1_item_used[shared_data[identifier].p1_item_type-1]:
+                shared_data[identifier].p1_item_used[shared_data[identifier].p1_item_type-1] = True
+                shared_data[identifier].p1_item = False
+                shared_data[identifier].p1_item_time[shared_data[identifier].p1_item_type-1] = 0
+                if shared_data[identifier].p1_item_type == 2:
+                    shared_data[identifier].tempvelo_x = shared_data[identifier].velo_x
+                    shared_data[identifier].tempvelo_y = shared_data[identifier].velo_y
+                    shared_data[identifier].velo_y = 0
+                    shared_data[identifier].velo_x = 0
+                shared_data[identifier].p1_item_type = 0
+            # ì•„ì´í…œ ì¢…ë£Œ
+            if shared_data[identifier].p1_item_used[0]:
+                if shared_data[identifier].p1_item_time[0] >= 10000:
+                    if shared_data[identifier].p1_paddle_height > 100:
+                        shared_data[identifier].p1_paddle_height -= 5
                     else:
-                        data[identifier][19] = 100
-                        data[identifier][21][0] = 0
-                        data[identifier][23][0] = False
+                        shared_data[identifier].p1_paddle_height = 100
+                        shared_data[identifier].p1_item_time[0] = 0
+                        shared_data[identifier].p1_item_used[0] = False
                 else:
-                    if data[identifier][19] < 300:
-                        data[identifier][19] += 5
+                    if shared_data[identifier].p1_paddle_height < 300:
+                        shared_data[identifier].p1_paddle_height += 5
                     else:
-                        data[identifier][19] = 300
-            if data[identifier][23][1]:
-                if data[identifier][21][1] >= 1500:
-                    data[identifier][21][1] = 0
-                    data[identifier][23][1] = False
-                    data[identifier][6] = data[identifier][25] * uniform(1.5,2)
-                    data[identifier][7] = data[identifier][26] * choice([uniform(-2,-1.1),uniform(1.1,2)])
+                        shared_data[identifier].p1_paddle_height = 300
+            if shared_data[identifier].p1_item_used[1]:
+                if shared_data[identifier].p1_item_time[1] >= 1500:
+                    shared_data[identifier].p1_item_time[1] = 0
+                    shared_data[identifier].p1_item_used[1] = False
+                    shared_data[identifier].velo_x = shared_data[identifier].tempvelo_x * \
+                        uniform(1.5, 2)
+                    shared_data[identifier].velo_y = shared_data[identifier].tempvelo_y * \
+                        choice([uniform(-2, -1.1), uniform(1.1, 2)])
 
+            if shared_data[identifier].p1_y < 0:
+                shared_data[identifier].p1_y = 0
+            elif shared_data[identifier].p1_y + shared_data[identifier].p1_paddle_height > 600:
+                shared_data[identifier].p1_y = 600 - \
+                    shared_data[identifier].p1_paddle_height
+            self.protocol.my_paddle_x = shared_data[identifier].p1_x
+            self.protocol.my_paddle_y = shared_data[identifier].p1_y
+            self.protocol.other_paddle_x = shared_data[identifier].p2_x
+            self.protocol.other_paddle_y = shared_data[identifier].p2_y
+            self.protocol.has_item = shared_data[identifier].p1_item
+            self.protocol.item_type = shared_data[identifier].p1_item_type
+            self.protocol.my_paddle_height = shared_data[identifier].p1_paddle_height
+            self.protocol.other_paddle_height = shared_data[identifier].p2_paddle_height
 
-            if data[identifier][1] < 0:
-                data[identifier][1] = 0
-            elif data[identifier][1] + data[identifier][19] > 600:
-                data[identifier][1] = 600 - data[identifier][19]
-            self.protocol.my_paddle_x = data[identifier][0]
-            self.protocol.my_paddle_y = data[identifier][1]
-            self.protocol.other_paddle_x = data[identifier][2]
-            self.protocol.other_paddle_y = data[identifier][3]
-            self.protocol.has_item = data[identifier][15]
-            self.protocol.item_type = data[identifier][16]
-            self.protocol.my_paddle_height = data[identifier][19]
-            self.protocol.other_paddle_height = data[identifier][20]
-
-            #¾ÆÀÌÅÛ Áö¼Ó½Ã°£ Ã³¸®
+            # ì•„ì´í…œ ì§€ì†ì‹œê°„ ì²˜ë¦¬
             for i in range(3):
-                if data[identifier][23][i]:
-                    data[identifier][21][i] += self.clock.get_time()
+                if shared_data[identifier].p1_item_used[i]:
+                    shared_data[identifier].p1_item_time[i] += self.clock.get_time()
 
-            #Â¦¼ö¹øÂ° ÇÃ·¹ÀÌ¾îÀÏ °æ¿ì (¿ìÃø ¸·´ë ¹èÁ¤)
+            # ì§ìˆ˜ë²ˆì§¸ í”Œë ˆì´ì–´ì¼ ê²½ìš° (ìš°ì¸¡ ë§‰ëŒ€ ë°°ì •)
         else:
             identifier: int = response_msg.player - 2
             if response_msg.pad_up == True:
-                data[identifier][3] -= 6.5*response_msg.dt
+                shared_data[identifier].p2_y -= 6.5*response_msg.dt
             elif response_msg.pad_dn == True:
-                data[identifier][3] += 6.5*response_msg.dt
-            if data[identifier][3] < 0:
-                data[identifier][3] = 0
-            elif data[identifier][3] + data[identifier][20] > 600:
-                data[identifier][3] = 600 - data[identifier][20]
-            self.protocol.my_paddle_x = data[identifier][2]
-            self.protocol.my_paddle_y = data[identifier][3]
-            self.protocol.other_paddle_x = data[identifier][0]
-            self.protocol.other_paddle_y = data[identifier][1]
-            self.protocol.has_item = data[identifier][17]  
-            self.protocol.item_type = data[identifier][18]
-            self.protocol.my_paddle_height = data[identifier][20]
-            self.protocol.other_paddle_height = data[identifier][19]
+                shared_data[identifier].p2_y += 6.5*response_msg.dt
+            if shared_data[identifier].p2_y < 0:
+                shared_data[identifier].p2_y = 0
+            elif shared_data[identifier].p2_y + shared_data[identifier].p2_paddle_height > 600:
+                shared_data[identifier].p2_y = 600 - \
+                    shared_data[identifier].p2_paddle_height
+            self.protocol.my_paddle_x = shared_data[identifier].p2_x
+            self.protocol.my_paddle_y = shared_data[identifier].p2_y
+            self.protocol.other_paddle_x = shared_data[identifier].p1_x
+            self.protocol.other_paddle_y = shared_data[identifier].p1_y
+            self.protocol.has_item = shared_data[identifier].p2_item
+            self.protocol.item_type = shared_data[identifier].p2_item_type
+            self.protocol.my_paddle_height = shared_data[identifier].p2_paddle_height
+            self.protocol.other_paddle_height = shared_data[identifier].p1_paddle_height
 
-            #¾ÆÀÌÅÛ »ç¿ë
-            #1¹ø ¾ÆÀÌÅÛ = ¸·´ë ±æÀÌ Áõ°¡
-            #2¹ø ¾ÆÀÌÅÛ = ¿øÇÏ´Â Å¸ÀÌ¹Ö¿¡ °ø ÀÏ½ÃÁ¤Áö
-            #3¹ø ¾ÆÀÌÅÛ = ²Î(ÀÓ½Ã, º¸·ùÁß)
-            if response_msg.item_use == True and not data[identifier][24][data[identifier][18]-1]:
-                data[identifier][24][data[identifier][18]-1] = True
-                data[identifier][17] = False
-                data[identifier][22][data[identifier][18]-1] = 0
-                if data[identifier][18] == 2:
-                    data[identifier][25] = data[identifier][6]
-                    data[identifier][26] = data[identifier][7]
-                    data[identifier][7] = 0
-                    data[identifier][6] = 0
-                data[identifier][18] = 0
-            #¾ÆÀÌÅÛ Á¾·á
-            if data[identifier][24][0]:
-                if data[identifier][22][0] >= 10000:
-                    if data[identifier][20] > 100:
-                        data[identifier][20] -= 5
+            # ì•„ì´í…œ ì‚¬ìš©
+            # 1ë²ˆ ì•„ì´í…œ = ë§‰ëŒ€ ê¸¸ì´ ì¦ê°€
+            # 2ë²ˆ ì•„ì´í…œ = ì›í•˜ëŠ” íƒ€ì´ë°ì— ê³µ ì¼ì‹œì •ì§€
+            # 3ë²ˆ ì•„ì´í…œ = ê½(ì„ì‹œ, ë³´ë¥˜ì¤‘)
+            if response_msg.item_use == True and not shared_data[identifier].p2_item_used[shared_data[identifier].p2_item_type-1]:
+                shared_data[identifier].p2_item_used[shared_data[identifier].p2_item_type-1] = True
+                shared_data[identifier].p2_item = False
+                shared_data[identifier].p2_item_time[shared_data[identifier].p2_item_type-1] = 0
+                if shared_data[identifier].p2_item_type == 2:
+                    shared_data[identifier].tempvelo_x = shared_data[identifier].velo_x
+                    shared_data[identifier].tempvelo_y = shared_data[identifier].velo_y
+                    shared_data[identifier].velo_y = 0
+                    shared_data[identifier].velo_x = 0
+                shared_data[identifier].p2_item_type = 0
+            # ì•„ì´í…œ ì¢…ë£Œ
+            if shared_data[identifier].p2_item_used[0]:
+                if shared_data[identifier].p2_item_time[0] >= 10000:
+                    if shared_data[identifier].p2_paddle_height > 100:
+                        shared_data[identifier].p2_paddle_height -= 5
                     else:
-                        data[identifier][20] = 100
-                        data[identifier][22][0] = 0
-                        data[identifier][24][0] = False
+                        shared_data[identifier].p2_paddle_height = 100
+                        shared_data[identifier].p2_item_time[0] = 0
+                        shared_data[identifier].p2_item_used[0] = False
                 else:
-                    if data[identifier][20] < 300:
-                        data[identifier][20] += 5
+                    if shared_data[identifier].p2_paddle_height < 300:
+                        shared_data[identifier].p2_paddle_height += 5
                     else:
-                        data[identifier][20] = 300
-            if data[identifier][24][1]:
-                if data[identifier][22][1] >= 1500:
-                    data[identifier][22][1] = 0
-                    data[identifier][24][1] = False
-                    data[identifier][6] = data[identifier][25] * uniform(1.5,2)
-                    data[identifier][7] = data[identifier][26] * choice([uniform(-2,-1.1),uniform(1.1,2)])
+                        shared_data[identifier].p2_paddle_height = 300
+            if shared_data[identifier].p2_item_used[1]:
+                if shared_data[identifier].p2_item_time[1] >= 1500:
+                    shared_data[identifier].p2_item_time[1] = 0
+                    shared_data[identifier].p2_item_used[1] = False
+                    shared_data[identifier].velo_x = shared_data[identifier].tempvelo_x * \
+                        uniform(1.5, 2)
+                    shared_data[identifier].velo_y = shared_data[identifier].tempvelo_y * \
+                        choice([uniform(-2, -1.1), uniform(1.1, 2)])
 
-            #¾ÆÀÌÅÛ Áö¼Ó½Ã°£ Ã³¸®
+            # ì•„ì´í…œ ì§€ì†ì‹œê°„ ì²˜ë¦¬
             for i in range(3):
-                if data[identifier][24][i]:
-                    data[identifier][22][i] += self.clock.get_time()
-            
-            #°øÀÇ ¿òÁ÷ÀÓ
-        data[identifier][4] += data[identifier][6] * response_msg.dt
-        data[identifier][5] += data[identifier][7] * response_msg.dt
+                if shared_data[identifier].p2_item_used[i]:
+                    shared_data[identifier].p2_item_time[i] += self.clock.get_time()
 
-            #½ÂÆĞ Ã³¸®ºÎºĞ
-        if data[identifier][4] >= 790:
-            data[identifier][14] = 1
-            data[identifier][10] += 100
-            data[identifier][8] += 1
-            data[identifier][4]=400
-            data[identifier][5]=300
-            data[identifier][6] = -1 * response_msg.dt
-            data[identifier][7] = -1 * response_msg.dt
-            data[identifier][10] += data[identifier][10] * 2
-        elif data[identifier][4] <= 0:
-            data[identifier][14] = 2
-            data[identifier][10] += 100
-            data[identifier][9] += 1
-            data[identifier][4]=400
-            data[identifier][5]=300
-            data[identifier][6] = 1 * response_msg.dt
-            data[identifier][7] = -1 * response_msg.dt
-            data[identifier][10] += data[identifier][10] * 2
+            # ê³µì˜ ì›€ì§ì„
+        shared_data[identifier].ball_x += shared_data[identifier].velo_x * \
+            response_msg.dt
+        shared_data[identifier].ball_y += shared_data[identifier].velo_y * \
+            response_msg.dt
 
-            #°ø°ú »ó´Ü ¶Ç´Â ÇÏ´ÜÀÇ Ãæµ¹ Ã³¸®ºÎºĞ
-        if data[identifier][5] >= 590:
-            if randint(1,16384) <= data[identifier][10] and not data[identifier][13]:
-                data[identifier][11] = randint(250,500)
-                data[identifier][12] = randint(150,400)
-                data[identifier][10] = 0
-                data[identifier][13] = True
+        # ìŠ¹íŒ¨ ì²˜ë¦¬ë¶€ë¶„
+        if shared_data[identifier].ball_x >= 790:
+            shared_data[identifier].last_hit = 1
+            shared_data[identifier].item_constructor += 100
+            shared_data[identifier].p1_score += 1
+            shared_data[identifier].ball_x = 400
+            shared_data[identifier].ball_y = 300
+            shared_data[identifier].velo_x = -1 * response_msg.dt
+            shared_data[identifier].velo_y = -1 * response_msg.dt
+            shared_data[identifier].item_constructor += shared_data[identifier].item_constructor * 2
+        elif shared_data[identifier].ball_x <= 0:
+            shared_data[identifier].last_hit = 2
+            shared_data[identifier].item_constructor += 100
+            shared_data[identifier].p2_score += 1
+            shared_data[identifier].ball_x = 400
+            shared_data[identifier].ball_y = 300
+            shared_data[identifier].velo_x = 1 * response_msg.dt
+            shared_data[identifier].velo_y = -1 * response_msg.dt
+            shared_data[identifier].item_constructor += shared_data[identifier].item_constructor * 2
+
+            # ê³µê³¼ ìƒë‹¨ ë˜ëŠ” í•˜ë‹¨ì˜ ì¶©ëŒ ì²˜ë¦¬ë¶€ë¶„
+        if shared_data[identifier].ball_y >= 590:
+            if randint(1, 16384) <= shared_data[identifier].item_constructor and not shared_data[identifier].item_existence:
+                shared_data[identifier].item_x = randint(250, 500)
+                shared_data[identifier].item_y = randint(150, 400)
+                shared_data[identifier].item_constructor = 0
+                shared_data[identifier].item_existence = True
             else:
-                data[identifier][10] += 10
-            data[identifier][7] = - data[identifier][7]
-        if data[identifier][5] <= 0:
-            if randint(1,16384) <= data[identifier][10] and not data[identifier][13]:
-                data[identifier][11] = randint(250,500)
-                data[identifier][12] = randint(150,400)
-                data[identifier][10] = 0
-                data[identifier][13] = True
+                shared_data[identifier].item_constructor += 10
+            shared_data[identifier].velo_y = - shared_data[identifier].velo_y
+        if shared_data[identifier].ball_y <= 0:
+            if randint(1, 16384) <= shared_data[identifier].item_constructor and not shared_data[identifier].item_existence:
+                shared_data[identifier].item_x = randint(250, 500)
+                shared_data[identifier].item_y = randint(150, 400)
+                shared_data[identifier].item_constructor = 0
+                shared_data[identifier].item_existence = True
             else:
-                data[identifier][10] += 10
-            data[identifier][7] = - data[identifier][7]
+                shared_data[identifier].item_constructor += 10
+            shared_data[identifier].velo_y = - shared_data[identifier].velo_y
 
-            #°ø°ú ¸·´ëÀÇ Ãæµ¹ Ã³¸®ºÎºĞ
-            #ÁÂÃø ÇÃ·¹ÀÌ¾î ¸·´ë¿Í °ø Ãæµ¹
-        if data[identifier][4] < 20 and (data[identifier][1] < data[identifier][5] and data[identifier][1] + data[identifier][19] > data[identifier][5]):
-            if randint(1,4096) <= data[identifier][10] and not data[identifier][13]:
-                data[identifier][11] = randint(250,500)
-                data[identifier][12] = randint(150,400)
-                data[identifier][10] = 0
-                data[identifier][13] = True
+            # ê³µê³¼ ë§‰ëŒ€ì˜ ì¶©ëŒ ì²˜ë¦¬ë¶€ë¶„
+            # ì¢Œì¸¡ í”Œë ˆì´ì–´ ë§‰ëŒ€ì™€ ê³µ ì¶©ëŒ
+        if shared_data[identifier].ball_x < 20 and (shared_data[identifier].p1_y < shared_data[identifier].ball_y and shared_data[identifier].p1_y + shared_data[identifier].p1_paddle_height > shared_data[identifier].ball_y):
+            if randint(1, 4096) <= shared_data[identifier].item_constructor and not shared_data[identifier].item_existence:
+                shared_data[identifier].item_x = randint(250, 500)
+                shared_data[identifier].item_y = randint(150, 400)
+                shared_data[identifier].item_constructor = 0
+                shared_data[identifier].item_existence = True
             else:
-                data[identifier][10] += data[identifier][10]
-            data[identifier][6] = - data[identifier][6] * (response_msg.dt * uniform(0.6,0.75))
-            data[identifier][14] = 1
+                shared_data[identifier].item_constructor += shared_data[identifier].item_constructor
+            shared_data[identifier].velo_x = - shared_data[identifier].velo_x * \
+                (response_msg.dt * uniform(0.6, 0.75))
+            shared_data[identifier].last_hit = 1
 
-            #ÁÂÃø ÇÃ·¹ÀÌ¾î ²ø¾îÄ¡±â ±¸Çö¿ë ÄÚµå
+            # ì¢Œì¸¡ í”Œë ˆì´ì–´ ëŒì–´ì¹˜ê¸° êµ¬í˜„ìš© ì½”ë“œ
             if response_msg.player % 2 == 1:
                 if response_msg.pad_up == True:
-                    data[identifier][7] = data[identifier][7]  + uniform(-1,-0.1) * response_msg.dt
+                    shared_data[identifier].velo_y = shared_data[identifier].velo_y + \
+                        uniform(-1, -0.1) * response_msg.dt
                 elif response_msg.pad_dn == True:
-                    data[identifier][7] = data[identifier][7]  + uniform(0.1,1) * response_msg.dt   
+                    shared_data[identifier].velo_y = shared_data[identifier].velo_y + \
+                        uniform(0.1, 1) * response_msg.dt
             else:
-                data[identifier][7] = data[identifier][7]  + uniform(-0.2,0.2) * response_msg.dt 
+                shared_data[identifier].velo_y = shared_data[identifier].velo_y + \
+                    uniform(-0.2, 0.2) * response_msg.dt
 
-            #¿ìÃø ÇÃ·¹ÀÌ¾î ¸·´ë¿Í °ø Ãæµ¹
-        if data[identifier][4] > 770 and (data[identifier][3] < data[identifier][5] and data[identifier][3] + data[identifier][20] > data[identifier][5]):
-            if randint(1,4096) <= data[identifier][10] and not data[identifier][13]:    #¾ÆÀÌÅÛ »ı¼º Á¶°Ç È®ÀÎ
-                data[identifier][11] = randint(250,500)
-                data[identifier][12] = randint(150,200)
-                data[identifier][10] = 0
-                data[identifier][13] = True
+            # ìš°ì¸¡ í”Œë ˆì´ì–´ ë§‰ëŒ€ì™€ ê³µ ì¶©ëŒ
+        if shared_data[identifier].ball_x > 770 and (shared_data[identifier].p2_y < shared_data[identifier].ball_y and shared_data[identifier].p2_y + shared_data[identifier].p2_paddle_height > shared_data[identifier].ball_y):
+            # ì•„ì´í…œ ìƒì„± ì¡°ê±´ í™•ì¸
+            if randint(1, 4096) <= shared_data[identifier].item_constructor and not shared_data[identifier].item_existence:
+                shared_data[identifier].item_x = randint(250, 500)
+                shared_data[identifier].item_y = randint(150, 200)
+                shared_data[identifier].item_constructor = 0
+                shared_data[identifier].item_existence = True
             else:
-                data[identifier][10] += data[identifier][10]
-            data[identifier][6] = - data[identifier][6] * (response_msg.dt * uniform(0.55,0.65))
-            data[identifier][14] = 2
+                shared_data[identifier].item_constructor += shared_data[identifier].item_constructor
+            shared_data[identifier].velo_x = - shared_data[identifier].velo_x * \
+                (response_msg.dt * uniform(0.55, 0.65))
+            shared_data[identifier].last_hit = 2
 
-            #¿ìÃø ÇÃ·¹ÀÌ¾î ²ø¾îÄ¡±â ±¸Çö¿ë ÄÚµå
+            # ìš°ì¸¡ í”Œë ˆì´ì–´ ëŒì–´ì¹˜ê¸° êµ¬í˜„ìš© ì½”ë“œ
             if response_msg.player % 2 == 0:
                 if response_msg.pad_up == True:
-                    data[identifier][7] = data[identifier][7]  + uniform(-1,-0.1) * response_msg.dt
+                    shared_data[identifier].velo_y = shared_data[identifier].velo_y + \
+                        uniform(-1, -0.1) * response_msg.dt
                 elif response_msg.pad_dn == True:
-                    data[identifier][7] = data[identifier][7]  + uniform(0.1,1) * response_msg.dt                 
+                    shared_data[identifier].velo_y = shared_data[identifier].velo_y + \
+                        uniform(0.1, 1) * response_msg.dt
             else:
-                data[identifier][7] = data[identifier][7]  + uniform(-0.2,0.2) * response_msg.dt 
+                shared_data[identifier].velo_y = shared_data[identifier].velo_y + \
+                    uniform(-0.2, 0.2) * response_msg.dt
 
-            #¾ÆÀÌÅÛ È¹µæÃ³¸®
-        if (data[identifier][4]+10 > data[identifier][11] and data[identifier][4] < data[identifier][11]+50 ) and (data[identifier][12] < data[identifier][5] and data[identifier][12] + 50 > data[identifier][5]):
-            data[identifier][11] = -999
-            data[identifier][12] = -999
-            data[identifier][13] = False
-            data[identifier][10] = 0
-            if data[identifier][14] == 1:
-                data[identifier][15] = True
-                data[identifier][16] = randint(1,3)
-            elif data[identifier][14] == 2:
-                data[identifier][17] = True
-                data[identifier][18] = randint(1,3)  
-        #¼­¹ö¿¡¼­ Ã³¸®ÇÑ ¿©·¯ µ¥ÀÌÅÍ¸¦ ÇÁ·ÎÅäÄİ¿¡ ÀúÀåÇÏ¿© Å¬¶óÀÌ¾ğÆ®¿¡ Àü¼Û
-        self.protocol.ball_x = data[identifier][4]
-        self.protocol.ball_y = data[identifier][5]
-        self.protocol.score=[data[identifier][8],data[identifier][9]]
-        self.protocol.item_x = data[identifier][11]
-        self.protocol.item_y = data[identifier][12]
-        self.protocol.ball_shine = [data[identifier][23][1],data[identifier][24][1]]
-
-        
-        # self.protocol.other_paddle_x, self.protocol.other_paddle_y = Shared.GetOtherPaddle(
-        #     response_msg.player)
+            # ì•„ì´í…œ íšë“ì²˜ë¦¬
+        if (shared_data[identifier].ball_x+10 > shared_data[identifier].item_x and shared_data[identifier].ball_x < shared_data[identifier].item_x+50) and (shared_data[identifier].item_y < shared_data[identifier].ball_y and shared_data[identifier].item_y + 50 > shared_data[identifier].ball_y):
+            shared_data[identifier].item_x = -999
+            shared_data[identifier].item_y = -999
+            shared_data[identifier].item_existence = False
+            shared_data[identifier].item_constructor = 0
+            if shared_data[identifier].last_hit == 1:
+                shared_data[identifier].p1_item = True
+                shared_data[identifier].p1_item_type = randint(1, 3)
+            elif shared_data[identifier].last_hit == 2:
+                shared_data[identifier].p2_item = True
+                shared_data[identifier].p2_item_type = randint(1, 3)
+        # ì„œë²„ì—ì„œ ì²˜ë¦¬í•œ ì—¬ëŸ¬ ë°ì´í„°ë¥¼ í”„ë¡œí† ì½œì— ì €ì¥í•˜ì—¬ í´ë¼ì´ì–¸íŠ¸ì— ì „ì†¡
+        self.protocol.ball_x = shared_data[identifier].ball_x
+        self.protocol.ball_y = shared_data[identifier].ball_y
+        self.protocol.score = [
+            shared_data[identifier].p1_score, shared_data[identifier].p2_score]
+        self.protocol.item_x = shared_data[identifier].item_x
+        self.protocol.item_y = shared_data[identifier].item_y
+        self.protocol.ball_shine = [
+            shared_data[identifier].p1_item_used[1], shared_data[identifier].p2_item_used[1]]
 
         print("Other Paddle: ", self.protocol.other_paddle_x,
               self.protocol.other_paddle_y)
@@ -356,9 +351,9 @@ class ClientThread(Thread):
         ClientThread.lock.release()
 
     def Receive(self) -> Protocol:
-        data = self.clientsocket.recv(4096)
-        print(len(data))
-        response_msg: Protocol = pickle.loads(data)
+        shared_data = self.clientsocket.recv(4096)
+        print(len(shared_data))
+        response_msg: Protocol = pickle.loads(shared_data)
         print("Received: ", response_msg.command)
         print("from player: ", response_msg.player)
         return response_msg
@@ -369,7 +364,6 @@ serverSock.bind(('', 8082))
 serverSock.listen(1)
 
 
-# lock = Lock()
 q: Queue = []
 for i in range(10):
     q.append(Queue())
@@ -378,11 +372,5 @@ for i in range(10):
 while True:
     serverSock.listen(2)
     clientsock, clientAddress = serverSock.accept()
-    if ClientThread.num_connection % 2 == 0:
-        print("init ", ClientThread.num_connection)
-        newthread = ClientThread(
-            clientAddress, clientsock, q[ClientThread.num_connection], q[ClientThread.num_connection + 1])
-    else:
-        newthread = ClientThread(
-            clientAddress, clientsock, q[ClientThread.num_connection], q[ClientThread.num_connection - 1])
+    newthread = ClientThread(clientAddress, clientsock)
     newthread.start()
