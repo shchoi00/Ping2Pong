@@ -48,7 +48,7 @@ class ClientThread(Thread):
                 print(ClientThread.num_connection)
                 self.CheckConnection()
             if response_msg.command == "SessChk":
-                self.CheckSession()
+                self.CheckSession(response_msg)
             if response_msg.command == "Update":
                 self.Update(response_msg)
             if response_msg.command == "bye":
@@ -70,10 +70,22 @@ class ClientThread(Thread):
         self.protocol.player = ClientThread.num_connection
         print("num con", ClientThread.num_connection)
 
-    def CheckSession(self):
+    def CheckSession(self, response_msg: Protocol):
         self.protocol.command = "SessChk"
         self.protocol.player = ClientThread.num_connection
         print("num con", ClientThread.num_connection)
+        print("response_msg   ", response_msg)
+        if response_msg.player % 2 == 1:  # 1P
+            identifier: int = response_msg.player - 1
+            shared_data[identifier].p1_ready = response_msg.my_ready
+            shared_data[identifier].p1_start = response_msg.my_start
+        else:  # 2P
+            identifier: int = response_msg.player - 2
+            shared_data[identifier].p2_ready = response_msg.my_ready
+            shared_data[identifier].p2_start = response_msg.my_start
+
+        self.protocol.game_ready = shared_data[identifier].p1_ready and shared_data[identifier].p2_ready
+        self.protocol.game_start = shared_data[identifier].p1_start and shared_data[identifier].p2_start
 
     def Update(self, response_msg: Protocol):
         print("UPDATE")

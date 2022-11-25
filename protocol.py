@@ -23,6 +23,9 @@ class Protocol:
     item_x: int = 0
     item_y: int = 0
     player: int = 0
-    game: int = 0
+    my_ready: bool = False
+    game_ready: bool = False
+    my_start: bool = False
+    game_start: bool = False
     pause: bool = False
     dt: float = 0

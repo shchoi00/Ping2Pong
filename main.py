@@ -7,12 +7,17 @@ from ball import Ball
 from network import Network
 from protocol import Protocol
 
+from time import sleep
+import itertools
+import sys
+from threading import Thread
 
 ITEMSIZE = 50
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 RED = (255, 255, 0)
 YELLOW = (250, 182, 40)
+BG = (65, 105, 225)  # (106, 159, 181)
 
 
 class Item(pygame.sprite.Sprite):
@@ -65,6 +70,8 @@ class Game():
 
         self.network = Network()
 
+        self.ready = False
+
         # This will be a list that will contain all the sprites we intend to use in our game.
         self.all_sprites_list = pygame.sprite.Group()
 
@@ -83,6 +90,123 @@ class Game():
         # Initialise player scores
         self.scoreA = 0
         self.scoreB = 0
+
+        # light shade of the button when it's hovered
+        self.color_light = (173, 216, 230)
+
+        # dark shade of the button
+        self.color_dark = (135, 206, 250)
+
+        self.BG = (65, 105, 225)  # (106, 159, 181)
+
+        self.font = pygame.font.SysFont(
+            "microsoftjhengheimicrosoftjhengheiuibold", 40)
+        self.Bigfont = pygame.font.SysFont(
+            "microsoftjhengheimicrosoftjhengheiuibold", 48)
+
+    """
+    A function write text on the screen
+    """
+
+    def put_text(self, text, font, color, surface, x, y):
+        textobj = font.render(text, 1, color)
+        textrect = textobj.get_rect()
+        textrect.topleft = (x, y)
+        surface.blit(textobj, textrect)
+
+    def LoadingBar(self):
+        global done
+        done = False
+        global loadingC
+        for c in itertools.cycle(['|', '/', '-', '\\']):
+
+            if done:
+                break
+            loadingC = c
+            sleep(0.33)
+
+    def MainMenu(self):
+        print("READY  ", self.ready)
+        if self.ready:
+            self.FindingOpponentScreen()  # goes to Finding Opponent Screen
+        else:
+            self.screen.fill(BG)
+            self.put_text('Welcome to Ping2Pong Game',
+                          self.Bigfont, WHITE, self.screen, 180, 40)
+            mouse = pygame.mouse.get_pos()  # get mouse's position
+            for ev in pygame.event.get():
+                keys = pygame.key.get_pressed()
+
+                if ev.type == pygame.QUIT or keys[pygame.K_ESCAPE]:
+                    pygame.quit()
+                    sys.exit(0)
+
+                # checks if a mouse is clicked
+                if ev.type == pygame.MOUSEBUTTONDOWN:
+
+                    # if the user clicked certain area,
+                    if self.WIDTH/2-80 <= mouse[0] <= self.WIDTH/2+60 and self.HEIGHT/2+100 <= mouse[1] <= self.HEIGHT/2+140:
+                        self.network.DisconnectSession()
+                        pygame.quit()  # it quit
+                        sys.exit(0)
+                    if self.WIDTH/2-80 <= mouse[0] <= self.WIDTH/2+60 and self.HEIGHT/2-100 <= mouse[1] <= self.HEIGHT/2+-60:
+                        # self.FindingOpponentScreen()  # goes to Finding Opponent Screen
+                        self.ready = True
+
+            # mouse = pygame.mouse.get_pos()  # get mouse's position
+            if self.WIDTH/2-80 <= mouse[0] <= self.WIDTH/2+60 and self.HEIGHT/2+100 <= mouse[1] <= self.HEIGHT/2+140:
+                self.put_text('QUIT', self.Bigfont, WHITE,
+                              self.screen, self.WIDTH/2-27, self.HEIGHT/2+110)
+            else:
+                self.put_text('QUIT', self.font, WHITE, self.screen,
+                              self.WIDTH/2-27, self.HEIGHT/2+110)
+
+            if self.WIDTH/2-80 <= mouse[0] <= self.WIDTH/2+60 and self.HEIGHT/2-100 <= mouse[1] <= self.HEIGHT/2-60:
+                self.put_text('PLAY', self.Bigfont, WHITE, self.screen,
+                              self.WIDTH/2-27, self.HEIGHT/2-100)
+            else:
+                self.put_text('PLAY', self.font, WHITE, self.screen,
+                              self.WIDTH/2-27, self.HEIGHT/2-100)
+            sleep(0.1)
+            pygame.display.update()
+
+    def FindingOpponentScreen(self):
+        t = Thread(target=self.LoadingBar)
+
+        self.screen.fill(BG)
+        mouse = pygame.mouse.get_pos()
+        for ev in pygame.event.get():
+            keys = pygame.key.get_pressed()
+
+            if ev.type == pygame.QUIT or keys[pygame.K_ESCAPE]:
+                pygame.quit()
+                sys.exit(0)
+
+            # checks if the user clicked it
+            if ev.type == pygame.MOUSEBUTTONDOWN:
+                if self.WIDTH/2-400 <= mouse[0] <= self.WIDTH/2-50 and self.HEIGHT/2+250 <= mouse[1] <= self.HEIGHT/2+290:
+                    self.ready = False
+
+        if self.WIDTH/2-383 <= mouse[0] <= self.WIDTH/2-33 and self.HEIGHT/2+250 <= mouse[1] <= self.HEIGHT/2+290:
+            pygame.draw.rect(self.screen, self.color_light, [
+                self.WIDTH/2-383, self.HEIGHT/2+250, 350, 40])
+        else:
+            pygame.draw.rect(self.screen, self.color_dark, [
+                self.WIDTH/2-383, self.HEIGHT/2+250, 350, 40])
+
+        if not t.is_alive():  # if the thread is dead
+            t.start()
+
+            self.put_text('Finding Opponent ... ', self.font, WHITE,
+                          self.screen, self.WIDTH/2-120, self.HEIGHT/2-50)
+        else:  # alive
+            self.put_text('Finding Opponent ... ' + loadingC, self.font,
+                          WHITE, self.screen, self.WIDTH/2-120, self.HEIGHT/2-50)
+
+        self.put_text("Return to main menu", self.font, WHITE,
+                      self.screen, self.WIDTH/2-350, self.HEIGHT/2+255)
+        sleep(0.1)
+        pygame.display.update()
 
     def Update(self, dt):
         self.network.protocol.player = self.network.player
@@ -105,6 +229,7 @@ class Game():
         self.network.protocol.has_item = response_msg.has_item
         self.network.protocol.other_has_item = response_msg.other_has_item
         self.network.protocol.item_type = response_msg.item_type
+
         if response_msg.ball_shine[0] or response_msg.ball_shine[1]:
             self.ball.color = (
                 randint(0, 255), randint(0, 255), randint(0, 255))
@@ -113,7 +238,38 @@ class Game():
 
     def RunGame(self):
         # -------- Main Program Loop -----------
+
         while self.carry_on:
+
+            if not self.network.protocol.game_ready:  # 게임이 레디상태 아니면 if문 실행
+                self.network.protocol.player = self.network.player
+                self.network.protocol.my_ready = self.ready  # 나의 레디 상태 전송
+                self.MainMenu()
+                print(self.network.Connetion_establish)
+                if self.network.Connetion_establish != 1:
+                    self.network.CheckConnetion()
+                    print("conn establish ", self.network.Connetion_establish)
+                print("match  ", not self.network.match)
+                print("player ", self.network.player)
+                if self.ready:
+                    if not self.network.CheckSession():
+                        continue
+
+                # 1P 2P 구분
+                if self.network.player % 2 == 0:  # 1P
+                    self.my_paddle = self.paddleB
+                    self.other_paddle = self.paddleA
+                    self.network.counter_player = self.network.player - 1
+                else:                           # 2P
+                    self.my_paddle = self.paddleA
+                    self.other_paddle = self.paddleB
+                    self.network.counter_player = self.network.player + 1
+                print("player: ", self.network.player,
+                      " counter: ", self.network.counter_player)
+
+            if not self.network.protocol.game_ready:  # 게임이 레디상태가 아니면 여기서 정지
+                continue
+
             dt = self.clock.tick(60) / 10
             # --- Main event loop
             for event in pygame.event.get():  # User did something
@@ -142,26 +298,6 @@ class Game():
                     if event.key == pygame.K_LCTRL or event.key == pygame.K_RCTRL:
                         self.network.protocol.item_use = False
 
-            if not self.network.match:
-                print(self.network.Connetion_establish)
-                if self.network.Connetion_establish != 1:
-                    self.network.CheckConnetion()
-                    print("conn establish ", self.network.Connetion_establish)
-                print("match  ", not self.network.match)
-                print("player ", self.network.player)
-                if not self.network.match and not self.network.CheckSession():
-                    continue
-                # 1P 2P 구분
-                if self.network.player % 2 == 0:  # 1P
-                    self.my_paddle = self.paddleB
-                    self.other_paddle = self.paddleA
-                    self.network.counter_player = self.network.player - 1
-                else:                           # 2P
-                    self.my_paddle = self.paddleA
-                    self.other_paddle = self.paddleB
-                    self.network.counter_player = self.network.player + 1
-                print("player: ", self.network.player,
-                      " counter: ", self.network.counter_player)
             # --- Game logic should go here
             self.all_sprites_list.update()
 

@@ -36,7 +36,7 @@ class Network():
         response_msg = self.Receive()
         print("receive return")
         print("Command: ", response_msg.command)
-        print("Game: ", response_msg.game)
+        print("Game: ", response_msg.game_ready)
         if response_msg.command == "ConnChk":
             self.Connetion_establish += 1
 
@@ -50,7 +50,7 @@ class Network():
         self.protocol.command = "SessChk"
         self.Request()
         response_msg = self.Receive()
-
+        self.protocol.game_ready = response_msg.game_ready
         print(response_msg.player)
         if response_msg.command == "SessChk":
             if int(response_msg.player) % 2 == 0:

@@ -31,3 +31,7 @@ class ShareData:
         self.p2_item_used: list[bool] = [False, False, False]
         self.temp_velo_x: int = 0
         self.temp_velo_y: int = 0
+        self.p1_ready: bool = False
+        self.p2_ready: bool = False
+        self.p1_start: bool = False
+        self.p2_start: bool = False
