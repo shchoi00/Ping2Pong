@@ -1,16 +1,18 @@
 # Import the pygame library and initialise the game engine
+from random import randint
+from urllib import response
 import pygame
 from paddle import Paddle
 from ball import Ball
 from network import Network
 from protocol import Protocol
-from time import sleep
 
 
 ITEMSIZE = 50
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 RED = (255, 255, 0)
+YELLOW = (250, 182, 40)
 
 
 class Item(pygame.sprite.Sprite):
@@ -40,10 +42,10 @@ class Game():
         # Open a new window
         self.size = (self.WIDTH, self.HEIGHT)
         self.screen = pygame.display.set_mode(self.size)
-        pygame.display.set_caption("Pong")
+        pygame.display.set_caption("Ping 2 Pong")
 
         self.paddleA = Paddle(WHITE, 10, 100)
-        self.paddleA.rect.x = 20
+        self.paddleA.rect.x = 10
         self.paddleA.rect.y = 200
 
         self.paddleB = Paddle(WHITE, 10, 100)
@@ -82,69 +84,65 @@ class Game():
         self.scoreA = 0
         self.scoreB = 0
 
-    # 현제 게임 정보를 network.protocol에 담아서 서버로 보냄
-    # 서버로부터 상대방의 게임 정보를 받아옴
-    def Update(self):
-        self.network.protocol.my_paddle_x = self.my_paddle.rect.x
-        self.network.protocol.my_paddle_y = self.my_paddle.rect.y
-        self.network.protocol.other_paddle_x = self.other_paddle.rect.x
-        self.network.protocol.other_paddle_y = self.other_paddle.rect.y
-        self.network.protocol.ball_x = self.ball.rect.x
-        self.network.protocol.ball_y = self.ball.rect.x
-        self.network.protocol.velo_x = self.ball.velocity[0]
-        self.network.protocol.velo_y = self.ball.velocity[1]
+    def Update(self, dt):
         self.network.protocol.player = self.network.player
         self.network.protocol.counter_player = self.network.counter_player
         self.network.protocol.game = self.network.game
+        self.network.protocol.dt = dt
         response_msg = self.network.Update()
         self.other_paddle.rect.x = response_msg.other_paddle_x
         self.other_paddle.rect.y = response_msg.other_paddle_y
-        print("rep counter  ", response_msg.counter_player)
-        print("player: ", self.network.player,
-              " counter: ", self.network.counter_player)
-
-    def WinRound(self):
-
-        # Check if the self.ball is bouncing against any of the 4 walls:
-        if self.ball.rect.x >= self.WIDTH - 10:
-            self.scoreA += 1
-            # self.ball.velocity[0] = -self.ball.velocity[0]
-            self.ball.rect.x = self.WIDTH / 2
-            self.ball.rect.y = self.HEIGHT / 2
-            self.ball.velocity[0] = -4
-            self.ball.velocity[1] = -4
-
-        if self.ball.rect.x <= 0:
-            self.scoreB += 1
-            self.ball.rect.x = self.WIDTH / 2
-            self.ball.rect.y = self.HEIGHT / 2
-            self.ball.velocity[0] = 4
-            self.ball.velocity[1] = -4
-        if self.ball.rect.y > self.HEIGHT - 10:
-            self.ball.velocity[1] = -self.ball.velocity[1]
-        if self.ball.rect.y < 10:
-            self.ball.velocity[1] = -self.ball.velocity[1]
+        self.my_paddle.rect.x = response_msg.my_paddle_x
+        self.my_paddle.rect.y = response_msg.my_paddle_y
+        self.ball.rect.x = response_msg.ball_x
+        self.ball.rect.y = response_msg.ball_y
+        self.scoreA = response_msg.score[0]
+        self.scoreB = response_msg.score[1]
+        self.item.rect.x = response_msg.item_x
+        self.item.rect.y = response_msg.item_y
+        self.my_paddle.height = response_msg.my_paddle_height
+        self.other_paddle.height = response_msg.other_paddle_height
+        self.network.protocol.has_item = response_msg.has_item
+        self.network.protocol.other_has_item = response_msg.other_has_item
+        self.network.protocol.item_type = response_msg.item_type
+        if response_msg.ball_shine[0] or response_msg.ball_shine[1]:
+            self.ball.color = (
+                randint(0, 255), randint(0, 255), randint(0, 255))
+        else:
+            self.ball.color = (WHITE)
 
     def RunGame(self):
-
         # -------- Main Program Loop -----------
         while self.carry_on:
-
-            # --- Limit to 60 frames per second
-            self.clock.tick(60)
-
+            dt = self.clock.tick(60) / 10
             # --- Main event loop
             for event in pygame.event.get():  # User did something
                 if event.type == pygame.QUIT:  # If user clicked close
                     self.carry_on = False  # Flag that we are done so we exit this loop
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_x:  # Pressing the x Key will quit the game
-                        self.network.DisconnectSession()
                         self.carry_on = False
 
-            # 상대방에 서버에 연결돼 있는지 확인하는 부분
-            if not self.network.match:
+                        # 컨트롤 제어 코드
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_UP or event.key == pygame.K_w:
+                        self.network.protocol.pad_up = True
+                    if event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                        self.network.protocol.pad_dn = True
+                    if event.key == pygame.K_LCTRL or event.key == pygame.K_RCTRL:
+                        if self.network.protocol.has_item:
 
+                            self.network.protocol.item_use = True
+                            self.network.protocol.has_item = False
+                if event.type == pygame.KEYUP:
+                    if event.key == pygame.K_UP or event.key == pygame.K_w:
+                        self.network.protocol.pad_up = False
+                    if event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                        self.network.protocol.pad_dn = False
+                    if event.key == pygame.K_LCTRL or event.key == pygame.K_RCTRL:
+                        self.network.protocol.item_use = False
+
+            if not self.network.match:
                 print(self.network.Connetion_establish)
                 if self.network.Connetion_establish != 1:
                     self.network.CheckConnetion()
@@ -153,7 +151,6 @@ class Game():
                 print("player ", self.network.player)
                 if not self.network.match and not self.network.CheckSession():
                     continue
-
                 # 1P 2P 구분
                 if self.network.player % 2 == 0:  # 1P
                     self.my_paddle = self.paddleB
@@ -165,36 +162,11 @@ class Game():
                     self.network.counter_player = self.network.player + 1
                 print("player: ", self.network.player,
                       " counter: ", self.network.counter_player)
-
             # --- Game logic should go here
             self.all_sprites_list.update()
-            # self.network.Request(self.paddleA.rect.x)
-
-            self.Update()
-
-            self.WinRound()
-            # Detect collisions between the self.ball and the paddles
-            if pygame.sprite.collide_mask(self.ball, self.paddleA) or pygame.sprite.collide_mask(self.ball, self.paddleB):
-                if pygame.sprite.collide_mask(self.ball, self.paddleA):
-                    self.paddleA.last_bounced = 1
-                    self.paddleB.last_bounced = 0
-                elif pygame.sprite.collide_mask(self.ball, self.paddleA):
-                    self.paddleA.last_bounced = 0
-                    self.paddleB.last_bounced = 1
-                self.ball.bounce()
 
             # Moving the paddles when the use uses the arrow keys (player A) or "W/S" keys (player B)
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_w]:
-                self.paddleA.moveUp(5)
-            if keys[pygame.K_s]:
-                self.paddleA.moveDown(5)
-            if keys[pygame.K_UP]:
-                self.paddleB.moveUp(5)
-            if keys[pygame.K_DOWN]:
-                self.paddleB.moveDown(5)
-            if keys[pygame.K_n]:
-                self.ball.skill()
+            self.Update(dt)
 
             # --- Drawing code should go here
             # First, clear the self.screen to black.
@@ -206,13 +178,6 @@ class Game():
             # Now let's draw all the sprites in one go. (For now we only have 2 sprites!)
             self.all_sprites_list.draw(self.screen)
 
-            if self.item.rect.x < self.ball.rect.x + ITEMSIZE and self.ball.rect.x < self.item.rect.x:
-                if self.item.rect.y < self.ball.rect.y + ITEMSIZE and self.ball.rect.y < self.item.rect.y:
-                    if self.paddleA.last_bounced:
-                        self.paddleA.skill_point += 1
-                    elif self.paddleB.last_bounced:
-                        self.paddleB.skill_point += 1
-
             # Display scores:
             font = pygame.font.Font(None, 74)
             text = font.render(str(self.scoreA), 1, WHITE)
@@ -220,11 +185,22 @@ class Game():
             text = font.render(str(self.scoreB), 1, WHITE)
             self.screen.blit(text, (self.WIDTH/2+110, 10))
 
+            if self.network.protocol.has_item:
+                self.my_paddle.color = YELLOW
+            else:
+                self.my_paddle.color = WHITE
+
+            if self.network.protocol.other_has_item:
+                self.other_paddle.color = YELLOW
+            else:
+                self.other_paddle.color = WHITE
+
             # --- Go ahead and update the self.screen with what we've drawn.
             pygame.display.flip()
 
         # Once we have exited the main program loop we can stop the game engine:
         pygame.quit()
+        self.network.DisconnectSession()
 
 
 if __name__ == "__main__":
