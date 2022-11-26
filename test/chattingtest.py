@@ -7,7 +7,25 @@ from pygame.locals import *
 import threading
 
 from math import pi
+import socket
 
+##################################################
+client_socket = socket.socket()
+port = 5678#12345
+client_socket.connect(('127.0.0.1',port))
+#client_socket.settimeout(2)
+#recieve connection message from server
+#recv_msg = client_socket.recv(1024)
+
+#client_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+
+#send user details to server
+send_msg = "#Player1"#.encode('utf-8')
+client_socket.send(send_msg.encode())
+
+
+#receive and send message from/to different user/s
+#####################################################
 
 pygame.init()
 
@@ -120,10 +138,6 @@ def readyFunction2():
     screen.blit(readyText, (618, 370))
 
 
-
-
-
-
 screen.fill(WHITE)
 
 ''' loading screen '''
@@ -171,72 +185,73 @@ screen.blit(userText, (625, 20))
 
 
 
-
-
 readyBtn1 = Button(645, 240, 70, 40, 'READY',readyFunction1)
-
-
-
-
-
-
-
 
 
 carryOn = True
 
-while not done:
-
-    Clock.tick(60)
-
-
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            done = True
-
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_BACKSPACE:
-                if len(inputText)> 0:
-                    inputText = inputText[:-1]
-                    print("x")
-            elif event.key == K_KP_ENTER or event.key == K_RETURN:
-                ()
-                #done typing, then send it to server
-            else:
-                inputText += event.unicode
-                print("o")
-            WriteHere = screenFont.render(inputText,True,WHITE)
-            writeBox.size = WriteHere.get_size()
-            writeCursor.topleft = writeBox.topright
+def receive():
+    
+    """Handles receiving of messages."""
+    while(True):
+        print(1)
+        msg = client_socket.recv(1024).decode()
+        if not msg:
+            print("nothing")
+        else:
+            print(msg)
 
 
+def main():
+    global WriteHere
+    global inputText
+    Clock.tick(30)
+    
+    
+    
+    while(True):
+            
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                done = True
 
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_BACKSPACE:
+                    if len(inputText)> 0:
+                        inputText = inputText[:-1]
+                        print("x")
+                elif event.key == K_KP_ENTER or event.key == K_RETURN:
+                    send_msg = ("[@payer1:"+inputText+"]").encode()
+                    client_socket.send(send_msg)
+                    #enter key detected, then send it to server
+                else:
+                    inputText += event.unicode
+                    print("o")
+                WriteHere = screenFont.render(inputText,True,WHITE)
+                writeBox.size = WriteHere.get_size()
+                writeCursor.topleft = writeBox.topright
+        
 
-    for object in objects:
-        object.process()
-
-
-
-
-
-    pygame.draw.rect(screen, L_GRAY, [30, 540, 520, 30])
-    screen.blit(WriteHere, writeBox)
-    if time.time() % 1 > 0.5:
-        pygame.draw.rect(screen, WHITE, writeCursor)
-
-    pygame.display.update()
-
-
-
-
-
-
-
-
-    pygame.display.flip()
+        
+        for object in objects:
+            object.process()
 
 
 
+        pygame.draw.rect(screen, L_GRAY, [30, 540, 520, 30])
+        screen.blit(WriteHere, writeBox)
+        if time.time() % 1 > 0.5:
+            pygame.draw.rect(screen, WHITE, writeCursor)
 
+        pygame.display.update()
+        pygame.display.flip()
+
+
+receive_thread = threading.Thread(target=receive)
+receive_thread.daemon = True
+receive_thread.start()
+
+main()
 pygame.quit()
+client_socket.close()
