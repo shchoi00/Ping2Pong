@@ -234,14 +234,14 @@ class Game():
             pygame.draw.rect(self.screen, BG, [610, 25, 100, 30])
 
             ''' user1 '''
-            pygame.draw.rect(self.screen, WHITE, [605, 50, 155, 155])
+            pygame.draw.rect(self.screen, WHITE, [600, 50, 155, 155])
             pygame.draw.circle(self.screen, BG, [682, 110], 30, 7)
             pygame.draw.arc(self.screen, BG, [616, 150, 130, 200], 0, pi/2, 7)
             pygame.draw.arc(self.screen, BG, [616, 150, 130, 200], pi/2, pi, 7)
             self.screen.blit(player1Text, (660, 215))
 
             ''' user2 '''
-            pygame.draw.rect(self.screen, WHITE, [605, 315, 155, 155])
+            pygame.draw.rect(self.screen, WHITE, [600, 315, 155, 155])
             pygame.draw.circle(self.screen, BG, [682, 375], 30, 7)
             pygame.draw.arc(self.screen, BG, [616, 415, 130, 200], 0, pi/2, 7)
             pygame.draw.arc(self.screen, BG, [616, 415, 130, 200], pi/2, pi, 7)
