@@ -202,17 +202,17 @@ class Game():
 
             chattingText = self.screenFont.render(
                 "Chatting Screen", True, WHITE)
-            userText = self.screenFont.render("User Screen", True, WHITE)
+            userText = self.screenFont.render("Players Screen", True, WHITE)
 
             P2PText = loadingFont.render("P 2 P", True, BG)
             p2pText = self.screenFont.render(
                 "PING                  to                PONG", True, BG)
             waitText = self.screenFont.render(
-                "Waiting for opponent user . . .", True, BG)
+                "Waiting for opponent Player . . .", True, BG)
             player1Text = self.screenFont.render(
-                "USER " + str(1 + 2 * (self.network.game-1)), True, WHITE)
+                "PLAYER " + str(1 + 2 * (self.network.game-1)), True, WHITE)
             player2Text = self.screenFont.render(
-                "USER " + str(2 + 2 * (self.network.game-1)), True, WHITE)
+                "PLAYER " + str(2 + 2 * (self.network.game-1)), True, WHITE)
 
             self.readyText = readyFont.render("READY!", True, ORANGE)
 

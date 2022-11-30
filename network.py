@@ -71,13 +71,7 @@ class Network():
             else:
                 self.message_list.append(response_msg.message)
 
-        print("len(self.message_list)")
-        print(len(self.message_list))
-
         self.message_count = len(self.message_list)
-        print("++++++++++++++++++++++++++++++++++++=s")
-        print(len(str(response_msg.message)))
-        print(response_msg.message)
         if response_msg.command == "SessChk":
             if int(response_msg.player) % 2 == 0:
                 self.match = True
