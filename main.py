@@ -151,6 +151,7 @@ class Game():
         self.color_dark = (135, 206, 250)
 
         self.BG = (65, 105, 225)  # (106, 159, 181)
+        self.loadingC = ""
 
         self.font = pygame.font.SysFont(
             "microsoftjhengheimicrosoftjhengheiuibold", 40)
@@ -208,8 +209,10 @@ class Game():
                 "PING                  to                PONG", True, BG)
             waitText = self.screenFont.render(
                 "Waiting for opponent user . . .", True, BG)
-            player1Text = self.screenFont.render("USER 1", True, WHITE)
-            player2Text = self.screenFont.render("USER 2", True, WHITE)
+            player1Text = self.screenFont.render(
+                "USER " + str(1 + 2 * (self.network.game-1)), True, WHITE)
+            player2Text = self.screenFont.render(
+                "USER " + str(2 + 2 * (self.network.game-1)), True, WHITE)
 
             self.readyText = readyFont.render("READY!", True, ORANGE)
 
@@ -265,7 +268,8 @@ class Game():
                                            self.readyFunction2))
 
             self.chatting_font = pygame.font.SysFont("arial", 13, False, False)
-
+            t = Thread(target=self.Render)
+            t.start()
             self.init = 1
 
         for event in pygame.event.get():
@@ -294,15 +298,6 @@ class Game():
             for object in self.objects:
                 self.process(object)
 
-            self.RenderChatting()
-
-            if self.network.player % 2 == 1:
-                if self.network.protocol.other_ready:
-                    self.readyFunction2()
-            else:
-                if self.network.protocol.other_ready:
-                    self.readyFunction1()
-
             pygame.draw.rect(self.screen, L_GRAY, [30, 540, 520, 30])
             self.screen.blit(self.WriteHere, self.writeBox)
             if time.time() % 1 > 0.5:
@@ -311,17 +306,23 @@ class Game():
         pygame.display.update()
         pygame.display.flip()
 
-    def RenderChatting(self):
-        print("self.message_count)")
-        print("self.message_count)")
-        print("self.message_count)")
-        print(self.message_count)
-        for i in range(self.network.message_count):
-            if self.message_count - 1 < i:
-                text_Title = self.chatting_font.render(
-                    "Player" + str(self.network.player) + ": "+self.network.message_list[i][16:], True, BLACK)
-                self.screen.blit(text_Title, [50, 430 + i*15])
-        self.message_count = self.network.message_count
+    def Render(self):
+        while not self.network.protocol.game_ready:
+            print(self.message_count)
+            for i in range(self.network.message_count):
+                if self.message_count - 1 < i:
+                    text_Title = self.chatting_font.render(
+                        self.network.message_list[i], True, BLACK)
+                    self.screen.blit(text_Title, [50, 430 + i*15])
+            self.message_count = self.network.message_count
+
+            if self.network.player % 2 == 1:
+                if self.network.protocol.other_ready:
+                    self.readyFunction2()
+            else:
+                if self.network.protocol.other_ready:
+                    self.readyFunction1()
+            sleep(0.33)
 
     def put_text(self, text, font, color, surface, x, y):
         textobj = font.render(text, 1, color)
@@ -332,13 +333,13 @@ class Game():
     def LoadingBar(self):
         global done
         done = False
-        global loadingC
-        for c in itertools.cycle(['|', '/', '-', '\\']):
+        while not self.network.protocol.game_start:
+            for c in itertools.cycle(['|', '/', '-', '\\']):
 
-            if done:
-                break
-            loadingC = c
-            sleep(0.33)
+                if done:
+                    break
+                self.loadingC = c
+                sleep(0.33)
 
     def MainMenu(self):
         print("READY  ", self.start)
@@ -415,7 +416,7 @@ class Game():
             self.put_text('Finding Opponent ... ', self.font, WHITE,
                           self.screen, self.WIDTH/2-120, self.HEIGHT/2-50)
         else:  # alive
-            self.put_text('Finding Opponent ... ' + loadingC, self.font,
+            self.put_text('Finding Opponent ... ' + self.loadingC, self.font,
                           WHITE, self.screen, self.WIDTH/2-120, self.HEIGHT/2-50)
 
         self.put_text("Return to main menu", self.font, WHITE,

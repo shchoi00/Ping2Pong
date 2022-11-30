@@ -32,6 +32,7 @@ class ClientThread(Thread):
         self.clock = time.Clock()
         self.protocol = Protocol()
         self.message_count = 0
+        self.init = 0
         self.player = ClientThread.num_connection
         if self.player % 2 == 1:
             self.counter_player = self.player + 1
@@ -87,10 +88,13 @@ class ClientThread(Thread):
             self.protocol.other_ready = shared_data[identifier].p1_ready
         shared_data[identifier].p1_score = 0
         shared_data[identifier].p2_score = 0
+
         if response_msg.message != "":
-            shared_data[identifier].message.append(response_msg.message)
+            shared_data[identifier].message.append(
+                "Player " + str(response_msg.player + (response_msg.game - 1) * 2) + ": " + response_msg.message[16:])
             shared_data[identifier].message_count += 1
         self.protocol.message = ""
+
         if shared_data[identifier].message_count != self.message_count:
             self.protocol.message = shared_data[identifier].message[shared_data[identifier]
                                                                     .message_count - 1]
@@ -116,6 +120,10 @@ class ClientThread(Thread):
             elif response_msg.pad_dn == True:
                 shared_data[identifier].p1_y += 6.5*response_msg.dt
 
+            if self.init != 1:
+                shared_data[identifier].p1_score = -1
+                shared_data[identifier].p2_score = -1
+                self.init = 1
             # 아이템 사용
             # 1번 아이템 = 막대 길이 증가
             # 2번 아이템 = 원하는 타이밍에 공 일시정지
@@ -176,6 +184,11 @@ class ClientThread(Thread):
             # 짝수번째 플레이어일 경우 (우측 막대 배정)
         else:
             identifier: int = response_msg.player - 2
+
+            if self.init != 1:
+                shared_data[identifier].p1_score = 0
+                shared_data[identifier].p2_score = 0
+                self.init = 1
             if response_msg.pad_up == True:
                 shared_data[identifier].p2_y -= 6.5*response_msg.dt
             elif response_msg.pad_dn == True:

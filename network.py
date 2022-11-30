@@ -43,7 +43,13 @@ class Network():
             self.Connetion_establish += 1
 
             self.player = response_msg.player
+            if self.player % 2 == 1:
+                self.counter_player = self.player + 1
+            else:
+                self.counter_player = self.player - 1
+
             self.game = int((int(self.player)+1) / 2)
+            self.protocol.game = self.game
         print("chkconn  ", self.Connetion_establish)
 
     # 서버에 다른 클라이언트가 연결 되었는지 확인,
