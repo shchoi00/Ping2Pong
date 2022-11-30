@@ -25,7 +25,10 @@ class Protocol:
     player: int = 0
     my_ready: bool = False
     game_ready: bool = False
+    other_ready: bool = False
     my_start: bool = False
+
     game_start: bool = False
-    pause: bool = False
+
     dt: float = 0
+    message: str = ""

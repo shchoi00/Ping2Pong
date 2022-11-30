@@ -16,6 +16,8 @@ class Network():
         self.game = 0
         self.init = 0
         self.Connetion_establish = 0
+        self.message_list: list[str] = []
+        self.message_count: int = 0
         self.protocol = Protocol()
 
     def Request(self):
@@ -50,8 +52,26 @@ class Network():
         self.protocol.command = "SessChk"
         self.Request()
         response_msg = self.Receive()
+
         self.protocol.game_ready = response_msg.game_ready
-        print(response_msg.player)
+        print("game ready")
+        print(self.protocol.game_ready)
+        self.protocol.other_ready = response_msg.other_ready
+        self.protocol.game_start = response_msg.game_start
+        if len(str(response_msg.message)) > 1:
+            if self.message_count != 0:
+                if self.message_list[self.message_count - 1] != response_msg.message:
+                    self.message_list.append(response_msg.message)
+            else:
+                self.message_list.append(response_msg.message)
+
+        print("len(self.message_list)")
+        print(len(self.message_list))
+
+        self.message_count = len(self.message_list)
+        print("++++++++++++++++++++++++++++++++++++=s")
+        print(len(str(response_msg.message)))
+        print(response_msg.message)
         if response_msg.command == "SessChk":
             if int(response_msg.player) % 2 == 0:
                 self.match = True

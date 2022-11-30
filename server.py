@@ -31,7 +31,7 @@ class ClientThread(Thread):
 
         self.clock = time.Clock()
         self.protocol = Protocol()
-
+        self.message_count = 0
         self.player = ClientThread.num_connection
         if self.player % 2 == 1:
             self.counter_player = self.player + 1
@@ -79,11 +79,22 @@ class ClientThread(Thread):
             identifier: int = response_msg.player - 1
             shared_data[identifier].p1_ready = response_msg.my_ready
             shared_data[identifier].p1_start = response_msg.my_start
+            self.protocol.other_ready = shared_data[identifier].p2_ready
         else:  # 2P
             identifier: int = response_msg.player - 2
             shared_data[identifier].p2_ready = response_msg.my_ready
             shared_data[identifier].p2_start = response_msg.my_start
-
+            self.protocol.other_ready = shared_data[identifier].p1_ready
+        shared_data[identifier].p1_score = 0
+        shared_data[identifier].p2_score = 0
+        if response_msg.message != "":
+            shared_data[identifier].message.append(response_msg.message)
+            shared_data[identifier].message_count += 1
+        self.protocol.message = ""
+        if shared_data[identifier].message_count != self.message_count:
+            self.protocol.message = shared_data[identifier].message[shared_data[identifier]
+                                                                    .message_count - 1]
+            self.message_count += 1
         self.protocol.game_ready = shared_data[identifier].p1_ready and shared_data[identifier].p2_ready
         self.protocol.game_start = shared_data[identifier].p1_start and shared_data[identifier].p2_start
 
@@ -372,12 +383,6 @@ class ClientThread(Thread):
 serverSock = socket(AF_INET, SOCK_STREAM)
 serverSock.bind(('', 8082))
 serverSock.listen(1)
-
-
-q: Queue = []
-for i in range(10):
-    q.append(Queue())
-    q[i].put(Protocol)
 
 while True:
     serverSock.listen(2)

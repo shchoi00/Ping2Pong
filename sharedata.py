@@ -35,3 +35,5 @@ class ShareData:
         self.p2_ready: bool = False
         self.p1_start: bool = False
         self.p2_start: bool = False
+        self.message: list[str] = []
+        self.message_count: int = 0
